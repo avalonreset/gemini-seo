@@ -1,3 +1,4 @@
+<!-- Updated: 2026-02-07 -->
 ---
 name: seo-schema
 description: >
@@ -33,12 +34,14 @@ description: >
 Read `references/schema-types.md` for the full list. Key rules:
 
 ### ACTIVE — recommend freely:
-Organization, LocalBusiness, SoftwareApplication, WebApplication, Product (with Certification markup as of April 2025), Offer, Service, Article, BlogPosting, NewsArticle, Review, AggregateRating, BreadcrumbList, WebSite, WebPage, Person, ContactPage, VideoObject, ImageObject, Event, JobPosting, Course, DiscussionForumPosting
+Organization, LocalBusiness, SoftwareApplication, WebApplication, Product (with Certification markup as of April 2025), ProductGroup, Offer, Service, Article, BlogPosting, NewsArticle, Review, AggregateRating, BreadcrumbList, WebSite, WebPage, Person, ProfilePage, ContactPage, VideoObject, ImageObject, Event, JobPosting, Course, DiscussionForumPosting
 
 ### VIDEO & SPECIALIZED — recommend freely:
 BroadcastEvent, Clip, SeekToAction, SoftwareSourceCode
 
 See `schema/templates.json` for ready-to-use JSON-LD templates for these types.
+
+> **JSON-LD and JavaScript rendering:** Per Google's December 2025 JS SEO guidance, structured data injected via JavaScript may face delayed processing. For time-sensitive markup (especially Product, Offer), include JSON-LD in the initial server-rendered HTML.
 
 ### RESTRICTED — only for specific sites:
 - **FAQ**: ONLY for government and healthcare authority sites (restricted Aug 2023)

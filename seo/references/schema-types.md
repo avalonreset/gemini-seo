@@ -1,3 +1,4 @@
+<!-- Updated: 2026-02-07 -->
 # Schema.org Types — Status & Recommendations (February 2026)
 
 **Schema.org Version:** 29.4 (December 8, 2025)
@@ -37,6 +38,8 @@ Google's documentation explicitly recommends JSON-LD over Microdata and RDFa.
 | JobPosting | Job listings | title, description, datePosted, hiringOrganization, jobLocation |
 | Course | Educational content | name, description, provider, hasCourseInstance |
 | DiscussionForumPosting | Forum threads | headline, author, datePublished, text, url |
+| ProductGroup | Variant products | name, productGroupID, variesBy, hasVariant |
+| ProfilePage | Author/creator profiles | mainEntity (Person), name, url, description, sameAs |
 
 ---
 
@@ -71,7 +74,9 @@ Google's documentation explicitly recommends JSON-LD over Microdata and RDFa.
 
 | Type/Feature | Added | Notes |
 |-------------|-------|-------|
-| Product Certification markup | April 2025 | Energy ratings, safety certifications |
+| Product Certification markup | April 2025 | Energy ratings, safety certifications. Replaced EnergyConsumptionDetails. |
+| ProductGroup | 2025 | E-commerce product variants with variesBy, hasVariant properties |
+| ProfilePage | 2025 | Author/creator profile pages with mainEntity Person for E-E-A-T |
 | DiscussionForumPosting | 2024 | For forum/community content |
 | Speakable | Updated 2024 | For voice search optimization |
 | LoyaltyProgram | June 2025 | Member pricing, loyalty card structured data |

@@ -109,6 +109,105 @@
         "dateCreated": "[YYYY-MM-DD]",
         "dateModified": "[YYYY-MM-DD]"
       }
+    },
+    {
+      "type": "ProductGroup",
+      "description": "E-commerce product variants grouped by attributes like size, color. Enables variant-aware rich results with variesBy and hasVariant properties.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "ProductGroup",
+        "name": "[Product Name]",
+        "description": "[Product group description]",
+        "productGroupID": "[product-group-id]",
+        "variesBy": ["https://schema.org/size", "https://schema.org/color"],
+        "hasVariant": [
+          {
+            "@type": "Product",
+            "name": "[Variant - Red, Large]",
+            "sku": "[SKU-001]",
+            "color": "[Red]",
+            "size": "[Large]",
+            "offers": {
+              "@type": "Offer",
+              "price": "[29.99]",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ProfilePage",
+      "description": "Author, creator, or team member profile pages. Enhances E-E-A-T signals with mainEntity Person markup and sameAs links.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "ProfilePage",
+        "mainEntity": {
+          "@type": "Person",
+          "name": "[Author Name]",
+          "url": "[Profile URL]",
+          "description": "[Author bio and expertise summary]",
+          "sameAs": [
+            "[Twitter URL]",
+            "[LinkedIn URL]"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Certification",
+      "description": "Product certifications (Energy Star, safety, organic, etc.). Replaced EnergyConsumptionDetails in April 2025.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "[Product Name]",
+        "hasCertification": {
+          "@type": "Certification",
+          "certificationIdentification": "[Certification Name, e.g. Energy Star]",
+          "issuedBy": {
+            "@type": "Organization",
+            "name": "[Issuing Organization, e.g. EPA]"
+          }
+        }
+      }
+    },
+    {
+      "type": "OfferShippingDetails",
+      "description": "Shipping and delivery information for e-commerce products. Includes shipping rate, handling time, and transit time.",
+      "template": {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "[Product Name]",
+        "offers": {
+          "@type": "Offer",
+          "price": "[Price]",
+          "priceCurrency": "USD",
+          "shippingDetails": {
+            "@type": "OfferShippingDetails",
+            "shippingRate": {
+              "@type": "MonetaryAmount",
+              "value": "[0]",
+              "currency": "USD"
+            },
+            "deliveryTime": {
+              "@type": "ShippingDeliveryTime",
+              "handlingTime": {
+                "@type": "QuantitativeValue",
+                "minValue": 0,
+                "maxValue": 1,
+                "unitCode": "DAY"
+              },
+              "transitTime": {
+                "@type": "QuantitativeValue",
+                "minValue": 1,
+                "maxValue": 5,
+                "unitCode": "DAY"
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }
