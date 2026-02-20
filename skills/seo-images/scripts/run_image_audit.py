@@ -23,6 +23,7 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.8",
 }
+MAX_REDIRECT_HOPS = 10
 
 GENERIC_ALT = {
     "image",
@@ -91,9 +92,27 @@ def is_public_target(url: str) -> bool:
 
 
 def fetch_html(url: str, timeout: int) -> tuple[str, str]:
-    response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    response.raise_for_status()
-    return response.text, normalize_url(response.url)
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            raise ValueError("redirected target URL resolves to non-public or invalid host")
+        response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                response.raise_for_status()
+                return response.text, normalize_url(current_url)
+            if redirects >= MAX_REDIRECT_HOPS:
+                raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS})")
+            next_url = normalize_url(urljoin(current_url, location))
+            if not is_public_target(next_url):
+                raise ValueError("redirected target URL resolves to non-public or invalid host")
+            current_url = next_url
+            redirects += 1
+            continue
+        response.raise_for_status()
+        return response.text, normalize_url(current_url)
 
 
 def parse_html_input(args: argparse.Namespace) -> tuple[str, str]:
@@ -250,14 +269,85 @@ def picture_support(img: Tag) -> tuple[bool, bool]:
 
 
 def probe_image(url: str, timeout: int) -> dict[str, Any]:
+    if not is_public_target(url):
+        return {
+            "status_code": None,
+            "size_bytes": None,
+            "content_type": None,
+            "cache_control": None,
+            "host": canonical_host(urlparse(url).hostname),
+            "sampled": True,
+        }
     try:
-        with requests.head(url, headers=HEADERS, timeout=timeout, allow_redirects=True) as response:
-            status = response.status_code
-            headers = dict(response.headers)
-        if status in (405, 501):
-            with requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True, stream=True) as response:
+        current_url = url
+        redirects = 0
+        while True:
+            with requests.head(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False) as response:
                 status = response.status_code
                 headers = dict(response.headers)
+            if 300 <= status < 400:
+                location = (headers.get("Location") or "").strip()
+                if not location or redirects >= MAX_REDIRECT_HOPS:
+                    break
+                try:
+                    next_url = normalize_url(urljoin(current_url, location))
+                except ValueError:
+                    return {
+                        "status_code": None,
+                        "size_bytes": None,
+                        "content_type": None,
+                        "cache_control": None,
+                        "host": canonical_host(urlparse(url).hostname),
+                        "sampled": True,
+                    }
+                if not is_public_target(next_url):
+                    return {
+                        "status_code": None,
+                        "size_bytes": None,
+                        "content_type": None,
+                        "cache_control": None,
+                        "host": canonical_host(urlparse(url).hostname),
+                        "sampled": True,
+                    }
+                current_url = next_url
+                redirects += 1
+                continue
+            break
+        if status in (405, 501):
+            current_url = url
+            redirects = 0
+            while True:
+                with requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False, stream=True) as response:
+                    status = response.status_code
+                    headers = dict(response.headers)
+                if 300 <= status < 400:
+                    location = (headers.get("Location") or "").strip()
+                    if not location or redirects >= MAX_REDIRECT_HOPS:
+                        break
+                    try:
+                        next_url = normalize_url(urljoin(current_url, location))
+                    except ValueError:
+                        return {
+                            "status_code": None,
+                            "size_bytes": None,
+                            "content_type": None,
+                            "cache_control": None,
+                            "host": canonical_host(urlparse(url).hostname),
+                            "sampled": True,
+                        }
+                    if not is_public_target(next_url):
+                        return {
+                            "status_code": None,
+                            "size_bytes": None,
+                            "content_type": None,
+                            "cache_control": None,
+                            "host": canonical_host(urlparse(url).hostname),
+                            "sampled": True,
+                        }
+                    current_url = next_url
+                    redirects += 1
+                    continue
+                break
         content_length = headers.get("Content-Length")
         size_bytes = int(content_length) if content_length and str(content_length).isdigit() else None
         return {
@@ -265,7 +355,7 @@ def probe_image(url: str, timeout: int) -> dict[str, Any]:
             "size_bytes": size_bytes,
             "content_type": headers.get("Content-Type"),
             "cache_control": headers.get("Cache-Control"),
-            "host": canonical_host(urlparse(url).hostname),
+            "host": canonical_host(urlparse(current_url).hostname),
             "sampled": True,
         }
     except requests.exceptions.RequestException:

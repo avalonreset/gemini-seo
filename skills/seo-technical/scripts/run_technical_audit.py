@@ -27,6 +27,7 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.8",
 }
+MAX_REDIRECT_HOPS = 10
 
 AI_CRAWLERS = [
     "GPTBot",
@@ -86,18 +87,40 @@ def is_public_target(url: str) -> bool:
     return False
 
 
+def request_public(method: str, url: str, timeout: int) -> tuple[requests.Response, str, int]:
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            raise ValueError("redirected target URL resolves to non-public or invalid host")
+        response = requests.request(method, current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                return response, current_url, redirects
+            if redirects >= MAX_REDIRECT_HOPS:
+                raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS})")
+            next_url = normalize_url(urljoin(current_url, location))
+            if not is_public_target(next_url):
+                raise ValueError("redirected target URL resolves to non-public or invalid host")
+            current_url = next_url
+            redirects += 1
+            continue
+        return response, current_url, redirects
+
+
 def fetch_url(url: str, timeout: int) -> dict[str, Any]:
     started = time.perf_counter()
     try:
-        response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    except requests.exceptions.RequestException as exc:
+        response, final_url, redirects = request_public("GET", url, timeout)
+    except (requests.exceptions.RequestException, ValueError) as exc:
         return {"error": str(exc)}
     return {
         "status_code": response.status_code,
-        "final_url": response.url,
+        "final_url": final_url,
         "headers": {k.lower(): v for k, v in dict(response.headers).items()},
         "text": response.text,
-        "redirect_hops": len(response.history),
+        "redirect_hops": redirects,
         "response_ms": round((time.perf_counter() - started) * 1000, 2),
         "error": None,
     }
@@ -105,18 +128,18 @@ def fetch_url(url: str, timeout: int) -> dict[str, Any]:
 
 def fetch_text(url: str, timeout: int) -> dict[str, Any]:
     try:
-        response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+        response, _final_url, _redirects = request_public("GET", url, timeout)
         return {"ok": response.status_code < 400, "status_code": response.status_code, "text": response.text}
-    except requests.exceptions.RequestException:
+    except (requests.exceptions.RequestException, ValueError):
         return {"ok": False, "status_code": None, "text": ""}
 
 
 def try_head(url: str, timeout: int) -> dict[str, Any]:
     try:
-        response = requests.head(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+        response, _final_url, _redirects = request_public("HEAD", url, timeout)
         headers = {k.lower(): v for k, v in dict(response.headers).items()}
         return {"ok": response.status_code < 400, "status_code": response.status_code, "headers": headers}
-    except requests.exceptions.RequestException:
+    except (requests.exceptions.RequestException, ValueError):
         return {"ok": False, "status_code": None, "headers": {}}
 
 
@@ -227,6 +250,8 @@ def evaluate_sitemaps(base_url: str, robots_sitemaps: list[str], timeout: int) -
         if candidate in checked:
             continue
         checked.append(candidate)
+        if not is_public_target(candidate):
+            continue
         state = probe_url(candidate, timeout)
         if state["exists"] and not state["restricted"]:
             working.append(candidate)
@@ -739,6 +764,9 @@ def main() -> int:
         return 1
 
     final_url = normalize_url(fetched["final_url"])
+    if not is_public_target(final_url):
+        print("Error: redirected target URL resolves to non-public or invalid host")
+        return 1
     soup = soup_of(fetched["text"])
 
     robots_url = urljoin(final_url, "/robots.txt")

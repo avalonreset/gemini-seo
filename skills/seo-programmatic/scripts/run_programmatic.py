@@ -971,7 +971,7 @@ def generate_url_examples(config: dict[str, Any]) -> list[dict[str, str]]:
         primary = primary_terms[idx]
         secondary = secondary_terms[idx]
         if pattern == "location-service":
-            url = f"/{primary}/{secondary}"
+            url = f"{base_path}/{primary}/{secondary}".replace("//", "/")
             title = f"{secondary.replace('-', ' ').title()} in {primary.title()}"
             h1 = f"{secondary.replace('-', ' ').title()} - {primary.title()}"
         else:

@@ -29,6 +29,7 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.8",
 }
+MAX_REDIRECT_HOPS = 10
 
 WORD_FLOORS = {
     "homepage": 500,
@@ -117,13 +118,37 @@ def is_public_target(url: str) -> bool:
 
 def fetch_page(url: str, timeout: int) -> dict[str, Any]:
     started = time.perf_counter()
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    except requests.exceptions.RequestException as exc:
-        return {"error": str(exc)}
+    current_url = url
+    redirect_hops = 0
+    response: requests.Response | None = None
+    while True:
+        if not is_public_target(current_url):
+            return {"error": "redirected target URL resolves to non-public or invalid host"}
+        try:
+            response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        except requests.exceptions.RequestException as exc:
+            return {"error": str(exc)}
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                break
+            if redirect_hops >= MAX_REDIRECT_HOPS:
+                return {"error": f"Too many redirects (>{MAX_REDIRECT_HOPS})"}
+            try:
+                next_url = normalize_url(urljoin(current_url, location))
+            except ValueError as exc:
+                return {"error": f"Invalid redirect URL: {exc}"}
+            if not is_public_target(next_url):
+                return {"error": "redirected target URL resolves to non-public or invalid host"}
+            current_url = next_url
+            redirect_hops += 1
+            continue
+        break
+    if response is None:
+        return {"error": "No response returned"}
     return {
         "status_code": response.status_code,
-        "final_url": response.url,
+        "final_url": current_url,
         "headers": dict(response.headers),
         "text": response.text,
         "response_ms": round((time.perf_counter() - started) * 1000, 2),

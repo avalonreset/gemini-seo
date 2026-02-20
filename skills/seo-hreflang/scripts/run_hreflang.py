@@ -30,6 +30,7 @@ SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
 XHTML_NS = "http://www.w3.org/1999/xhtml"
 SEVERITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 HREFLANG_CODE_RE = re.compile(r"^[A-Za-z]{2}(?:-[A-Za-z]{2}|-[A-Za-z]{4}|-[A-Za-z]{4}-[A-Za-z]{2})?$")
+MAX_REDIRECT_HOPS = 10
 
 COMMON_INVALID_LANGUAGE_CODES = {
     "eng": "Use en",
@@ -282,9 +283,27 @@ def parse_page_html(html: str, page_url: str, source: str) -> PageRecord:
 
 
 def fetch_html(url: str, timeout: int) -> tuple[str, str]:
-    response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    response.raise_for_status()
-    return response.text, normalize_url(response.url)
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            raise ValueError("redirected target URL resolves to non-public or invalid host")
+        response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                response.raise_for_status()
+                return response.text, normalize_url(current_url)
+            if redirects >= MAX_REDIRECT_HOPS:
+                raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS})")
+            next_url = normalize_url(urljoin(current_url, location))
+            if not is_public_target(next_url):
+                raise ValueError("redirected target URL resolves to non-public or invalid host")
+            current_url = next_url
+            redirects += 1
+            continue
+        response.raise_for_status()
+        return response.text, normalize_url(current_url)
 
 
 def read_sitemap_file_text(path_value: str) -> str:
@@ -312,10 +331,28 @@ def decode_sitemap_response(response: requests.Response) -> str:
 
 
 def fetch_sitemap_text(url: str, timeout: int) -> tuple[str, str]:
-    response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    response.raise_for_status()
-    text = decode_sitemap_response(response)
-    return text, normalize_url(response.url)
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            raise ValueError("redirected sitemap URL resolves to non-public or invalid host")
+        response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                response.raise_for_status()
+                return decode_sitemap_response(response), normalize_url(current_url)
+            if redirects >= MAX_REDIRECT_HOPS:
+                raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS})")
+            next_url = normalize_url(urljoin(current_url, location))
+            if not is_public_target(next_url):
+                raise ValueError("redirected sitemap URL resolves to non-public or invalid host")
+            current_url = next_url
+            redirects += 1
+            continue
+        response.raise_for_status()
+        text = decode_sitemap_response(response)
+        return text, normalize_url(current_url)
 
 
 def parse_sitemap_document(xml_text: str, source: str) -> tuple[str, list[PageRecord], list[str]]:

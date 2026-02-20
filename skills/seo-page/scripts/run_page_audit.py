@@ -23,6 +23,7 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.8",
 }
+MAX_REDIRECT_HOPS = 10
 
 STOPWORDS = {
     "a",
@@ -96,17 +97,41 @@ def is_public_target(url: str) -> bool:
 
 def fetch(url: str, timeout: int) -> dict[str, Any]:
     started = time.perf_counter()
+    current_url = url
+    redirects = 0
+    resp: requests.Response | None = None
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+        while True:
+            if not is_public_target(current_url):
+                return {"error": "redirected target URL resolves to non-public or invalid host"}
+            resp = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+            if 300 <= resp.status_code < 400:
+                location = (resp.headers.get("Location") or "").strip()
+                if not location:
+                    break
+                if redirects >= MAX_REDIRECT_HOPS:
+                    return {"error": f"Too many redirects (>{MAX_REDIRECT_HOPS})"}
+                try:
+                    next_url = normalize_url(urljoin(current_url, location))
+                except ValueError as exc:
+                    return {"error": f"Invalid redirect URL: {exc}"}
+                if not is_public_target(next_url):
+                    return {"error": "redirected target URL resolves to non-public or invalid host"}
+                current_url = next_url
+                redirects += 1
+                continue
+            break
     except requests.exceptions.RequestException as exc:
         return {"error": str(exc)}
+    if resp is None:
+        return {"error": "No response returned"}
     return {
         "status_code": resp.status_code,
-        "final_url": resp.url,
+        "final_url": current_url,
         "headers": dict(resp.headers),
         "text": resp.text,
         "response_ms": round((time.perf_counter() - started) * 1000, 2),
-        "redirect_hops": len(resp.history),
+        "redirect_hops": redirects,
         "error": None,
     }
 
@@ -260,8 +285,28 @@ def analyze_images(soup: BeautifulSoup, base_url: str, timeout: int) -> dict[str
         if str(img.get("loading") or "").lower() == "lazy":
             lazy += 1
         if checked < 15 and full.startswith(("http://", "https://")):
+            if not is_public_target(full):
+                checked += 1
+                continue
             try:
-                r = requests.head(full, headers=HEADERS, timeout=timeout, allow_redirects=True)
+                current_url = full
+                redirects = 0
+                while True:
+                    r = requests.head(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+                    if 300 <= r.status_code < 400:
+                        location = (r.headers.get("Location") or "").strip()
+                        if not location or redirects >= MAX_REDIRECT_HOPS:
+                            break
+                        try:
+                            next_url = normalize_url(urljoin(current_url, location))
+                        except ValueError:
+                            break
+                        if not is_public_target(next_url):
+                            break
+                        current_url = next_url
+                        redirects += 1
+                        continue
+                    break
                 cl = r.headers.get("Content-Length")
                 if cl and str(cl).isdigit():
                     size = int(cl)
@@ -446,6 +491,9 @@ def main() -> int:
         return 1
 
     final_url = normalize_url(fetched["final_url"])
+    if not is_public_target(final_url):
+        print("Error: redirected target URL resolves to non-public or invalid host")
+        return 1
     soup = soup_of(fetched["text"])
     title = soup.title.get_text(" ", strip=True) if soup.title else None
     h1_tags = soup.find_all("h1")

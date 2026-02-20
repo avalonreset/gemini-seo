@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urljoin, urlparse, urlunparse
 import xml.etree.ElementTree as ET
 
 import requests
@@ -28,6 +28,7 @@ HEADERS = {
 }
 PRIORITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Info": 4}
 PRIVATE_NOINDEX_RE = re.compile(r'(?i)<meta[^>]+name=["\']robots["\'][^>]+content=["\'][^"\']*noindex')
+MAX_REDIRECT_HOPS = 10
 
 
 @dataclass
@@ -94,9 +95,27 @@ def is_public_target(url: str) -> bool:
 
 
 def fetch_text(url: str, timeout: int) -> str:
-    response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    response.raise_for_status()
-    return response.text
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            raise ValueError(f"Non-public redirect target blocked: {current_url}")
+        response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                response.raise_for_status()
+                return response.text
+            if redirects >= MAX_REDIRECT_HOPS:
+                raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS}) while fetching {url}")
+            next_url = normalize_url(urljoin(current_url, location))
+            if not is_public_target(next_url):
+                raise ValueError(f"Non-public redirect target blocked: {next_url}")
+            current_url = next_url
+            redirects += 1
+            continue
+        response.raise_for_status()
+        return response.text
 
 
 def localname(tag: str) -> str:
@@ -295,7 +314,14 @@ def analyze_sitemaps(
     unique_urls = sorted(set(normalized_urls))
 
     non_https = [u for u in unique_urls if urlparse(u).scheme != "https"]
-    sample = unique_urls[: max(0, status_sample_limit)]
+    non_public_urls: list[str] = []
+    public_urls: list[str] = []
+    for candidate_url in unique_urls:
+        if is_public_target(candidate_url):
+            public_urls.append(candidate_url)
+        else:
+            non_public_urls.append(candidate_url)
+    sample = public_urls[: max(0, status_sample_limit)]
     non_200: list[str] = []
     redirected: list[str] = []
     noindex_urls: list[str] = []
@@ -352,6 +378,14 @@ def analyze_sitemaps(
                 "priority": "High",
                 "title": "HTTP URLs found in sitemap",
                 "detail": f"{len(non_https)} URLs are not HTTPS.",
+            }
+        )
+    if non_public_urls:
+        issues.append(
+            {
+                "priority": "High",
+                "title": "Non-public URLs found in sitemap",
+                "detail": f"{len(non_public_urls)} URLs resolve to private/reserved/invalid hosts.",
             }
         )
     if redirected:

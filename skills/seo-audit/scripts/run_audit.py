@@ -43,6 +43,7 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.8",
     "Connection": "keep-alive",
 }
+MAX_REDIRECT_HOPS = 10
 
 WEIGHTS = {
     "technical": 0.25,
@@ -136,11 +137,35 @@ def build_robots(start_url: str, timeout: int) -> tuple[robotparser.RobotFilePar
     robots_url = urljoin(start_url, "/robots.txt")
     rp = robotparser.RobotFileParser()
     rp.set_url(robots_url)
+    current_url = robots_url
+    redirects = 0
     try:
-        rp.read()
-        return rp, robots_url
+        while True:
+            if not is_public_target(current_url):
+                return None, current_url
+            response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+            if 300 <= response.status_code < 400:
+                location = (response.headers.get("Location") or "").strip()
+                if not location:
+                    return None, current_url
+                if redirects >= MAX_REDIRECT_HOPS:
+                    return None, current_url
+                try:
+                    next_url = normalize_url(urljoin(current_url, location))
+                except ValueError:
+                    return None, current_url
+                if not is_public_target(next_url):
+                    return None, next_url
+                current_url = next_url
+                redirects += 1
+                continue
+            if response.status_code >= 400:
+                return None, current_url
+            rp.parse((response.text or "").splitlines())
+            rp.set_url(current_url)
+            return rp, current_url
     except Exception:
-        return None, robots_url
+        return None, current_url
 
 
 def fetch_page(session: requests.Session, url: str, timeout: int) -> dict[str, Any]:
@@ -155,14 +180,43 @@ def fetch_page(session: requests.Session, url: str, timeout: int) -> dict[str, A
         "response_ms": None,
     }
     started = time.perf_counter()
+    current_url = url
+    redirect_hops = 0
+    resp: requests.Response | None = None
     try:
-        resp = session.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+        while True:
+            if not is_public_target(current_url):
+                result["error"] = "redirected target URL resolves to non-public or invalid host"
+                return result
+            resp = session.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+            if 300 <= resp.status_code < 400:
+                location = (resp.headers.get("Location") or "").strip()
+                if not location:
+                    break
+                if redirect_hops >= MAX_REDIRECT_HOPS:
+                    result["error"] = f"Too many redirects (>{MAX_REDIRECT_HOPS})"
+                    return result
+                try:
+                    next_url = normalize_url(urljoin(current_url, location))
+                except ValueError as exc:
+                    result["error"] = f"Invalid redirect URL: {exc}"
+                    return result
+                if not is_public_target(next_url):
+                    result["error"] = "redirected target URL resolves to non-public or invalid host"
+                    return result
+                current_url = next_url
+                redirect_hops += 1
+                continue
+            break
+        if resp is None:
+            result["error"] = "No response returned"
+            return result
         elapsed = (time.perf_counter() - started) * 1000.0
         result["status_code"] = resp.status_code
         result["text"] = resp.text
         result["headers"] = dict(resp.headers)
-        result["redirect_hops"] = len(resp.history)
-        result["final_url"] = resp.url
+        result["redirect_hops"] = redirect_hops
+        result["final_url"] = current_url
         result["response_ms"] = round(elapsed, 2)
     except requests.exceptions.RequestException as exc:
         result["error"] = str(exc)
@@ -342,11 +396,31 @@ def crawl_site(start_url: str, max_pages: int, timeout: int, delay: float) -> tu
 
 
 def try_fetch_exists(url: str, timeout: int) -> bool:
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-        return r.status_code < 400
-    except requests.exceptions.RequestException:
-        return False
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            return False
+        try:
+            response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        except requests.exceptions.RequestException:
+            return False
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                return False
+            if redirects >= MAX_REDIRECT_HOPS:
+                return False
+            try:
+                next_url = normalize_url(urljoin(current_url, location))
+            except ValueError:
+                return False
+            if not is_public_target(next_url):
+                return False
+            current_url = next_url
+            redirects += 1
+            continue
+        return response.status_code < 400
 
 
 def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:

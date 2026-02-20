@@ -13,7 +13,7 @@ import socket
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -43,6 +43,7 @@ RESTRICTED_TYPES = {"faqpage"}
 URL_FIELDS = {"url", "logo", "image", "@id", "sameas", "contenturl", "embedurl", "thumbnailurl"}
 DATE_FIELDS = {"datepublished", "datemodified", "datecreated", "uploaddate", "startdate", "enddate"}
 JSONLD_TYPE_RE = re.compile(r"application/ld\+json", re.IGNORECASE)
+MAX_REDIRECT_HOPS = 10
 
 REQUIRED_FIELDS: dict[str, list[str]] = {
     "organization": ["name", "url"],
@@ -112,9 +113,27 @@ def is_public_target(url: str) -> bool:
 
 
 def fetch_html(url: str, timeout: int) -> tuple[str, str]:
-    response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-    response.raise_for_status()
-    return response.text, normalize_url(response.url)
+    current_url = url
+    redirects = 0
+    while True:
+        if not is_public_target(current_url):
+            raise ValueError("redirected target URL resolves to non-public or invalid host")
+        response = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+        if 300 <= response.status_code < 400:
+            location = (response.headers.get("Location") or "").strip()
+            if not location:
+                response.raise_for_status()
+                return response.text, normalize_url(current_url)
+            if redirects >= MAX_REDIRECT_HOPS:
+                raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS})")
+            next_url = normalize_url(urljoin(current_url, location))
+            if not is_public_target(next_url):
+                raise ValueError("redirected target URL resolves to non-public or invalid host")
+            current_url = next_url
+            redirects += 1
+            continue
+        response.raise_for_status()
+        return response.text, normalize_url(current_url)
 
 
 def normalize_type(value: str) -> str:

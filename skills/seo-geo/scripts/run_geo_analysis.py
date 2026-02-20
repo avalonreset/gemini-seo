@@ -41,6 +41,7 @@ PLATFORMS = {
 }
 MAX_LINK_SCAN = 5000
 JSONLD_TYPE_RE = re.compile(r"application/ld\+json", re.IGNORECASE)
+MAX_REDIRECT_HOPS = 10
 
 
 
@@ -109,12 +110,27 @@ def load_page(args: argparse.Namespace) -> tuple[str, str]:
         target = normalize_url(args.url)
         if not is_public_target(target):
             raise ValueError("target URL resolves to non-public or invalid host")
-        res = requests.get(target, headers=HEADERS, timeout=args.timeout, allow_redirects=True)
-        res.raise_for_status()
-        final_url = normalize_url(res.url)
-        if not is_public_target(final_url):
-            raise ValueError("redirected target URL resolves to non-public or invalid host")
-        return res.text, final_url
+        current_url = target
+        redirects = 0
+        while True:
+            if not is_public_target(current_url):
+                raise ValueError("redirected target URL resolves to non-public or invalid host")
+            res = requests.get(current_url, headers=HEADERS, timeout=args.timeout, allow_redirects=False)
+            if 300 <= res.status_code < 400:
+                location = (res.headers.get("Location") or "").strip()
+                if not location:
+                    res.raise_for_status()
+                    return res.text, normalize_url(current_url)
+                if redirects >= MAX_REDIRECT_HOPS:
+                    raise ValueError(f"Too many redirects (>{MAX_REDIRECT_HOPS})")
+                next_url = normalize_url(urljoin(current_url, location))
+                if not is_public_target(next_url):
+                    raise ValueError("redirected target URL resolves to non-public or invalid host")
+                current_url = next_url
+                redirects += 1
+                continue
+            res.raise_for_status()
+            return res.text, normalize_url(current_url)
     html = read_file(args.html_file)
     page_url = normalize_url(args.page_url) if args.page_url else "https://example.com/"
     return html, page_url
@@ -122,11 +138,31 @@ def load_page(args: argparse.Namespace) -> tuple[str, str]:
 
 
 def fetch_text(url: str, timeout: int) -> tuple[str, int | None, str]:
+    current_url = url
+    redirects = 0
     try:
-        res = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
-        return (res.text if res.status_code < 400 else ""), res.status_code, res.url
+        while True:
+            if not is_public_target(current_url):
+                return "", None, current_url
+            res = requests.get(current_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
+            if 300 <= res.status_code < 400:
+                location = (res.headers.get("Location") or "").strip()
+                if not location:
+                    return "", res.status_code, current_url
+                if redirects >= MAX_REDIRECT_HOPS:
+                    return "", None, current_url
+                try:
+                    next_url = normalize_url(urljoin(current_url, location))
+                except ValueError:
+                    return "", None, current_url
+                if not is_public_target(next_url):
+                    return "", None, next_url
+                current_url = next_url
+                redirects += 1
+                continue
+            return (res.text if res.status_code < 400 else ""), res.status_code, current_url
     except requests.exceptions.RequestException:
-        return "", None, url
+        return "", None, current_url
 
 
 
