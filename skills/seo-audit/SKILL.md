@@ -11,6 +11,18 @@ description: >
 
 Execute an end-to-end audit for one domain. Keep the crawl safe, bounded, and reproducible.
 
+## Runtime
+
+- Main runner: `skills/seo-audit/scripts/run_audit.py`
+- Install dependencies from `skills/seo-audit/requirements.txt`
+- Optional visual checks require Playwright Chromium (`python -m playwright install chromium`)
+
+## Quick Run
+
+```bash
+python skills/seo-audit/scripts/run_audit.py https://example.com --output-dir seo-audit-output --visual auto
+```
+
 ## Inputs
 
 - `target_url` (required): homepage or canonical domain URL
@@ -30,8 +42,8 @@ Execute an end-to-end audit for one domain. Keep the crawl safe, bounded, and re
    - Resolve the canonical domain from `target_url`.
    - Keep only in-scope internal URLs.
 2. Collect baseline page data:
-   - Fetch pages with `scripts/fetch_page.py` (30s timeout).
-   - Parse pages with `scripts/parse_html.py` for tags, links, schema, media, and content signals.
+   - Fetch pages with the built-in runner fetcher (30s timeout).
+   - Parse pages with the built-in parser for tags, links, schema, media, and content signals.
 3. Crawl:
    - Perform BFS crawl of internal links up to `max_pages`.
    - Use concurrency `5` and delay `1s` between requests per worker.
