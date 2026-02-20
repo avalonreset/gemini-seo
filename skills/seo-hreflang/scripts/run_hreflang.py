@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import gzip
 import ipaddress
 import json
 import re
@@ -286,6 +287,37 @@ def fetch_html(url: str, timeout: int) -> tuple[str, str]:
     return response.text, normalize_url(response.url)
 
 
+def read_sitemap_file_text(path_value: str) -> str:
+    path = Path(path_value).resolve()
+    if not path.exists():
+        raise ValueError(f"Sitemap file not found: {path}")
+    raw = path.read_bytes()
+    if str(path).lower().endswith(".gz"):
+        try:
+            raw = gzip.decompress(raw)
+        except OSError as exc:
+            raise ValueError(f"Invalid gzip sitemap file: {path}") from exc
+    return raw.decode("utf-8", errors="ignore")
+
+
+def decode_sitemap_response(response: requests.Response) -> str:
+    content = response.content
+    encoding = str(response.headers.get("Content-Encoding") or "").lower()
+    if "gzip" in encoding:
+        try:
+            content = gzip.decompress(content)
+        except OSError:
+            pass
+    return content.decode("utf-8", errors="ignore")
+
+
+def fetch_sitemap_text(url: str, timeout: int) -> tuple[str, str]:
+    response = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+    response.raise_for_status()
+    text = decode_sitemap_response(response)
+    return text, normalize_url(response.url)
+
+
 def parse_sitemap_document(xml_text: str, source: str) -> tuple[str, list[PageRecord], list[str]]:
     try:
         root = ET.fromstring(xml_text)
@@ -379,10 +411,10 @@ def load_sitemap_records(args: argparse.Namespace) -> tuple[list[PageRecord], li
 
         try:
             if source_type == "file":
-                xml_text = Path(source_value).read_text(encoding="utf-8", errors="ignore")
+                xml_text = read_sitemap_file_text(source_value)
                 source_label = source_value
             else:
-                xml_text, final_url = fetch_html(source_value, args.timeout)
+                xml_text, final_url = fetch_sitemap_text(source_value, args.timeout)
                 source_label = final_url
         except (requests.exceptions.RequestException, OSError, ValueError) as exc:
             warnings.append(
@@ -716,7 +748,7 @@ def validate_records(
                 "language": primary_lang,
                 "url": page_url,
                 "self_ref": self_ref,
-                "return_ok": return_missing == 0,
+                "return_ok": return_missing == 0 and unresolved_targets == 0,
                 "x_default_ok": x_default_count == 1,
                 "status": status,
             }
