@@ -846,13 +846,23 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     write_text(path, json.dumps(payload, indent=2))
 
 
+def sanitize_csv_cell(value: Any) -> str:
+    text = normalize_text(value)
+    if not text:
+        return text
+    if text[0] in {"=", "+", "-", "@", "\t"}:
+        # Prevent spreadsheet formula execution when opening exported CSV in Excel/Sheets.
+        return "'" + text
+    return text
+
+
 def write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
-            writer.writerow(row)
+            writer.writerow({key: sanitize_csv_cell(row.get(key, "")) for key in fieldnames})
 
 
 def build_plan_config(args: argparse.Namespace) -> dict[str, Any]:
@@ -1042,6 +1052,9 @@ def render_plan_blueprint(config: dict[str, Any]) -> str:
 
 
 def run_analyze(args: argparse.Namespace) -> int:
+    minimum_unique_pct = clamp(float(args.analyze_minimum_unique_pct), 0.0, 100.0)
+    minimum_word_count = max(1, int(args.analyze_minimum_word_count))
+
     dataset_records = read_records(args.dataset_file)
     pages_records = read_records(args.pages_file) if args.pages_file else []
 
@@ -1049,8 +1062,8 @@ def run_analyze(args: argparse.Namespace) -> int:
     pages_parsed, page_parse_warnings = parse_pages(pages_records)
     pages_metrics = analyze_pages(
         pages_parsed,
-        minimum_unique_pct=float(args.analyze_minimum_unique_pct),
-        minimum_word_count=int(args.analyze_minimum_word_count),
+        minimum_unique_pct=minimum_unique_pct,
+        minimum_word_count=minimum_word_count,
     )
 
     projected_pages = max(dataset_metrics["row_count"], pages_metrics["total_pages"])
@@ -1059,8 +1072,8 @@ def run_analyze(args: argparse.Namespace) -> int:
         pages_metrics,
         projected_pages=projected_pages,
         justified_scale=bool(args.justified_scale),
-        minimum_unique_pct=float(args.analyze_minimum_unique_pct),
-        minimum_word_count=int(args.analyze_minimum_word_count),
+        minimum_unique_pct=minimum_unique_pct,
+        minimum_word_count=minimum_word_count,
         page_parse_warnings=page_parse_warnings,
     )
     scores = score_card(
@@ -1077,8 +1090,8 @@ def run_analyze(args: argparse.Namespace) -> int:
         projected_pages=projected_pages,
         issues=issues,
         gate_status=gate_status,
-        minimum_unique_pct=float(args.analyze_minimum_unique_pct),
-        minimum_word_count=int(args.analyze_minimum_word_count),
+        minimum_unique_pct=minimum_unique_pct,
+        minimum_word_count=minimum_word_count,
     )
 
     output_dir = Path(args.output_dir).resolve()
@@ -1094,8 +1107,8 @@ def run_analyze(args: argparse.Namespace) -> int:
             "review_hard_stop_pages": QUALITY_THRESHOLDS["review_hard_stop_pages"],
             "minimum_review_rate": QUALITY_THRESHOLDS["minimum_review_rate"],
             "hard_stop_unique_pct": QUALITY_THRESHOLDS["hard_stop_unique_pct"],
-            "minimum_unique_pct": float(args.analyze_minimum_unique_pct),
-            "minimum_word_count": int(args.analyze_minimum_word_count),
+            "minimum_unique_pct": minimum_unique_pct,
+            "minimum_word_count": minimum_word_count,
         },
         "observed": {
             "projected_pages": projected_pages,
