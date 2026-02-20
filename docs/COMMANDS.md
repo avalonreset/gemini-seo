@@ -1,278 +1,113 @@
-# Commands Reference
+# Workflow Reference
 
 ## Overview
 
-All Claude SEO commands start with `/seo` followed by a subcommand.
+Codex SEO supports two execution modes:
 
-## Command List
+1. Skill-driven mode in Codex (natural-language request, Codex routes to the right skill)
+2. Deterministic runner mode (direct Python command for repeatable local/CI output)
 
-### `/seo audit <url>`
+## Skill Routing Examples
 
-Full website SEO audit with parallel analysis.
+Use prompts like:
 
-**Example:**
-```
-/seo audit https://example.com
-```
+- "Run a full SEO audit for https://example.com"
+- "Analyze this page for SEO depth: https://example.com/about"
+- "Validate hreflang for this site and produce fixes"
+- "Generate a sitemap from this URL list"
+- "Create a strategic SEO plan for a SaaS business"
 
-**What it does:**
-1. Crawls up to 500 pages
-2. Detects business type
-3. Delegates to 6 specialist subagents in parallel
-4. Generates SEO Health Score (0-100)
-5. Creates prioritized action plan
+## Deterministic Runners
 
-**Output:**
-- `FULL-AUDIT-REPORT.md`
-- `ACTION-PLAN.md`
-- `screenshots/` (if Playwright available)
+### Full Site Audit
 
----
-
-### `/seo page <url>`
-
-Deep single-page analysis.
-
-**Example:**
-```
-/seo page https://example.com/about
+```bash
+python skills/seo-audit/scripts/run_audit.py https://example.com --output-dir out/audit
 ```
 
-**What it analyzes:**
-- On-page SEO (title, meta, headings, URLs)
-- Content quality (word count, readability, E-E-A-T)
-- Technical elements (canonical, robots, Open Graph)
-- Schema markup
-- Images (alt text, sizes, formats)
-- Core Web Vitals potential issues
+### Single Page Audit
 
----
-
-### `/seo technical <url>`
-
-Technical SEO audit across 8 categories.
-
-**Example:**
-```
-/seo technical https://example.com
+```bash
+python skills/seo-page/scripts/run_page_audit.py https://example.com/about --output-dir out/page
 ```
 
-**Categories:**
-1. Crawlability
-2. Indexability
-3. Security
-4. URL Structure
-5. Mobile Optimization
-6. Core Web Vitals (LCP, INP, CLS)
-7. Structured Data
-8. JavaScript Rendering
+### Technical SEO Audit
 
----
-
-### `/seo content <url>`
-
-E-E-A-T and content quality analysis.
-
-**Example:**
-```
-/seo content https://example.com/blog/post
+```bash
+python skills/seo-technical/scripts/run_technical_audit.py https://example.com --output-dir out/technical
 ```
 
-**What it evaluates:**
-- Experience signals (first-hand knowledge)
-- Expertise (author credentials)
-- Authoritativeness (external recognition)
-- Trustworthiness (transparency, security)
-- AI citation readiness
-- Content freshness
+### Content / E-E-A-T Audit
 
----
-
-### `/seo schema <url>`
-
-Schema markup detection, validation, and generation.
-
-**Example:**
-```
-/seo schema https://example.com
+```bash
+python skills/seo-content/scripts/run_content_audit.py https://example.com/blog/post --output-dir out/content
 ```
 
-**What it does:**
-- Detects existing schema (JSON-LD, Microdata, RDFa)
-- Validates against Google's requirements
-- Identifies missing opportunities
-- Generates ready-to-use JSON-LD
+### Schema Analysis / Generation
 
----
-
-### `/seo geo <url>`
-
-AI Overviews / Generative Engine Optimization.
-
-**Example:**
-```
-/seo geo https://example.com/blog/guide
+```bash
+python skills/seo-schema/scripts/run_schema.py analyze --url https://example.com --output-dir out/schema-analyze
+python skills/seo-schema/scripts/run_schema.py generate --template article --page-url https://example.com/post --output-dir out/schema-generate
 ```
 
-**What it analyzes:**
-- Citability score (quotable facts, statistics)
-- Structural readability (headings, lists, tables)
-- Entity clarity (definitions, context)
-- Authority signals (credentials, sources)
-- Structured data support
+### GEO Analysis
 
----
-
-### `/seo images <url>`
-
-Image optimization analysis.
-
-**Example:**
-```
-/seo images https://example.com
+```bash
+python skills/seo-geo/scripts/run_geo_analysis.py --url https://example.com/post --output-dir out/geo
 ```
 
-**What it checks:**
-- Alt text presence and quality
-- File sizes (flag >200KB)
-- Formats (WebP/AVIF recommendations)
-- Responsive images (srcset, sizes)
-- Lazy loading
-- CLS prevention (dimensions)
+### Image SEO Audit
 
----
-
-### `/seo sitemap <url>`
-
-Analyze existing XML sitemap.
-
-**Example:**
-```
-/seo sitemap https://example.com/sitemap.xml
+```bash
+python skills/seo-images/scripts/run_image_audit.py --url https://example.com --output-dir out/images
 ```
 
-**What it validates:**
-- XML format
-- URL count (<50k per file)
-- URL status codes
-- lastmod accuracy
-- Deprecated tags (priority, changefreq)
-- Coverage vs crawled pages
+### Sitemap Analyze / Generate
 
----
-
-### `/seo sitemap generate`
-
-Generate new sitemap with industry templates.
-
-**Example:**
-```
-/seo sitemap generate
+```bash
+python skills/seo-sitemap/scripts/run_sitemap.py analyze --sitemap-url https://example.com/sitemap.xml --output-dir out/sitemap-analyze
+python skills/seo-sitemap/scripts/run_sitemap.py generate --base-url https://example.com --urls-file urls.txt --output-dir out/sitemap-generate
 ```
 
-**Process:**
-1. Select or auto-detect business type
-2. Interactive structure planning
-3. Apply quality gates (30/50 location page limits)
-4. Generate valid XML
-5. Create documentation
+### Hreflang Validate / Generate
 
----
-
-### `/seo plan <type>`
-
-Strategic SEO planning.
-
-**Types:** `saas`, `local`, `ecommerce`, `publisher`, `agency`
-
-**Example:**
-```
-/seo plan saas
+```bash
+python skills/seo-hreflang/scripts/run_hreflang.py validate --url https://example.com --output-dir out/hreflang-validate
+python skills/seo-hreflang/scripts/run_hreflang.py generate --mapping-file mapping.json --output-dir out/hreflang-generate
 ```
 
-**What it creates:**
-- Complete SEO strategy
-- Competitive analysis
-- Content calendar
-- Implementation roadmap (4 phases)
-- Site architecture design
+### Programmatic SEO Analyze / Plan
 
----
-
-### `/seo competitor-pages [url|generate]`
-
-Competitor comparison page generation.
-
-**Examples:**
-```
-/seo competitor-pages https://example.com/vs/competitor
-/seo competitor-pages generate
+```bash
+python skills/seo-programmatic/scripts/run_programmatic.py analyze --dataset-file dataset.csv --output-dir out/programmatic-analyze
+python skills/seo-programmatic/scripts/run_programmatic.py plan --project-name "Acme" --pattern location-service --entity-singular location --entity-plural locations --base-path /services --expected-pages 200 --output-dir out/programmatic-plan
 ```
 
-**Capabilities:**
-- Generate "X vs Y" comparison page layouts
-- Create "Alternatives to X" page structures
-- Build feature comparison matrices with scoring
-- Generate Product + AggregateRating schema markup
-- Apply conversion-optimized CTA placement
-- Enforce fairness guidelines (accurate data, source citations)
+### Competitor Comparison Pages
 
----
-
-### `/seo hreflang [url]`
-
-Hreflang and international SEO audit and generation.
-
-**Example:**
-```
-/seo hreflang https://example.com
+```bash
+python skills/seo-competitor-pages/scripts/run_competitor_pages.py --mode vs --your-product "Acme" --competitors "Competitor" --output-dir out/competitor
 ```
 
-**Capabilities:**
-- Validate self-referencing hreflang tags
-- Check return tag reciprocity (A→B requires B→A)
-- Verify x-default tag presence
-- Validate ISO 639-1 language and ISO 3166-1 region codes
-- Check canonical URL alignment with hreflang
-- Detect protocol mismatches (HTTP vs HTTPS)
-- Generate correct hreflang link tags and sitemap XML
+### Strategic SEO Plan
 
----
-
-### `/seo programmatic [url|plan]`
-
-Programmatic SEO analysis and planning for pages generated at scale.
-
-**Examples:**
-```
-/seo programmatic https://example.com/tools/
-/seo programmatic plan
+```bash
+python skills/seo-plan/scripts/run_plan.py --industry saas --business-name "Acme" --website https://example.com --output-dir out/plan
 ```
 
-**Capabilities:**
-- Assess data source quality (CSV, JSON, API, database)
-- Plan template engines with unique content per page
-- Design URL pattern strategies (`/tools/[tool-name]`, `/[city]/[service]`)
-- Automate internal linking (hub/spoke, related items, breadcrumbs)
-- Enforce thin content safeguards (quality gates, word count thresholds)
-- Prevent index bloat (noindex low-value, pagination, faceted nav)
+## Skill-to-Runner Map
 
----
-
-## Quick Reference
-
-| Command | Use Case |
-|---------|----------|
-| `/seo audit <url>` | Full website audit |
-| `/seo competitor-pages [url\|generate]` | Competitor comparison pages |
-| `/seo content <url>` | E-E-A-T analysis |
-| `/seo geo <url>` | AI search optimization |
-| `/seo hreflang [url]` | Hreflang/i18n SEO audit |
-| `/seo images <url>` | Image optimization |
-| `/seo page <url>` | Single page analysis |
-| `/seo plan <type>` | Strategic planning |
-| `/seo programmatic [url\|plan]` | Programmatic SEO analysis |
-| `/seo schema <url>` | Schema validation |
-| `/seo sitemap <url>` | Sitemap validation |
-| `/seo sitemap generate` | Create new sitemap |
-| `/seo technical <url>` | Technical SEO check |
+| Skill | Runner |
+|---|---|
+| `seo-audit` | `skills/seo-audit/scripts/run_audit.py` |
+| `seo-page` | `skills/seo-page/scripts/run_page_audit.py` |
+| `seo-technical` | `skills/seo-technical/scripts/run_technical_audit.py` |
+| `seo-content` | `skills/seo-content/scripts/run_content_audit.py` |
+| `seo-schema` | `skills/seo-schema/scripts/run_schema.py` |
+| `seo-geo` | `skills/seo-geo/scripts/run_geo_analysis.py` |
+| `seo-images` | `skills/seo-images/scripts/run_image_audit.py` |
+| `seo-sitemap` | `skills/seo-sitemap/scripts/run_sitemap.py` |
+| `seo-hreflang` | `skills/seo-hreflang/scripts/run_hreflang.py` |
+| `seo-programmatic` | `skills/seo-programmatic/scripts/run_programmatic.py` |
+| `seo-competitor-pages` | `skills/seo-competitor-pages/scripts/run_competitor_pages.py` |
+| `seo-plan` | `skills/seo-plan/scripts/run_plan.py` |

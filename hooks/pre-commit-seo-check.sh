@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-commit SEO validation hook for Claude Code.
+# Pre-commit SEO validation hook for Codex.
 #
-# Hook configuration in ~/.claude/settings.json:
+# Hook configuration in ~/.codex/settings.json:
 # {
 #   "hooks": {
 #     "PreToolUse": [
@@ -12,7 +12,7 @@ set -euo pipefail
 #         "hooks": [
 #           {
 #             "type": "command",
-#             "command": "~/.claude/skills/seo/hooks/pre-commit-seo-check.sh",
+#             "command": "~/.codex/skills/seo/hooks/pre-commit-seo-check.sh",
 #             "exitCodes": { "2": "block" }
 #           }
 #         ]

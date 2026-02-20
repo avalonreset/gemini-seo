@@ -1,4 +1,4 @@
-# Claude SEO - Python Dependencies
+# Codex SEO - Python Dependencies
 # Bounded version pinning with security-conscious minimums
 # Last updated: February 7, 2026
 

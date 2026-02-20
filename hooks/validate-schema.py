@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Post-edit schema validation hook for Claude Code.
+"""Post-edit schema validation hook for Codex.
 
 Validates JSON-LD schema after file edits. Returns exit code 2 to block
 if critical validation errors found.
 
-Hook configuration in ~/.claude/settings.json:
+Hook configuration in ~/.codex/settings.json:
 {
   "hooks": {
     "PostToolUse": [
@@ -13,7 +13,7 @@ Hook configuration in ~/.claude/settings.json:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
+            "command": "python3 ~/.codex/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
             "exitCodes": { "2": "block" }
           }
         ]

@@ -1,236 +1,127 @@
 # Troubleshooting
 
-## Common Issues
+## Skill Not Loading in Codex
 
-### Skill Not Loading
+**Symptom:** Codex does not pick the expected SEO skill.
 
-**Symptom:** `/seo` command not recognized
+### Checks
 
-**Solutions:**
-
-1. Verify installation:
-```bash
-ls ~/.claude/skills/seo/SKILL.md
-```
-
-2. Check SKILL.md has proper frontmatter:
-```bash
-head -5 ~/.claude/skills/seo/SKILL.md
-```
-Should start with `---` followed by YAML.
-
-3. Restart Claude Code:
-```bash
-claude
-```
-
-4. Re-run installer:
-```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.sh | bash
-```
-
----
-
-### Python Dependency Errors
-
-**Symptom:** `ModuleNotFoundError: No module named 'requests'`
-
-**Solution:**
-
-As of v1.2.0, dependencies are installed in a venv. Try:
+1. Verify skill files exist under your Codex home:
 
 ```bash
-# Use the venv pip
-~/.claude/skills/seo/.venv/bin/pip install -r ~/.claude/skills/seo/requirements.txt
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+ls "$CODEX_HOME/skills/seo/SKILL.md"
+ls "$CODEX_HOME/skills/seo-audit/SKILL.md"
 ```
 
-If the venv doesn't exist, install with `--user`:
-```bash
-pip install --user -r ~/.claude/skills/seo/requirements.txt
-```
+2. Ensure files were copied recursively (including `scripts/` and `assets/` directories).
 
-Or install individually:
-```bash
-pip install --user beautifulsoup4 requests lxml playwright Pillow urllib3 validators
-```
+3. Restart your Codex session after installing or updating skills.
 
-### requirements.txt Not Found
+## Python Dependency Errors
 
-**Symptom:** `No such file: requirements.txt` after install
+**Symptom:** `ModuleNotFoundError` (for example `requests`, `bs4`, `lxml`).
 
-**Solution:** As of v1.2.0, requirements.txt is copied to the skill directory:
+### Fix
 
 ```bash
-ls ~/.claude/skills/seo/requirements.txt
+pip install -r requirements.txt
 ```
 
-If missing, download it directly:
+If using a virtual environment:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/requirements.txt \
-  -o ~/.claude/skills/seo/requirements.txt
+python -m venv .venv
+source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-### Windows Python Detection Issues
+## Playwright Errors
 
-**Symptom:** `python is not recognized` or `pip points to wrong Python`
+**Symptom:** Browser executable missing or screenshot/visual checks fail.
 
-**Solution (v1.2.0+):** The Windows installer now tries both `python` and `py -3`. If both fail:
+### Fix
 
-1. Install Python from [python.org](https://python.org) and check "Add to PATH"
-2. Or use the Windows launcher: `py -3 -m pip install -r requirements.txt`
-3. Use `python -m pip` instead of bare `pip`
-
----
-
-### Playwright Screenshot Errors
-
-**Symptom:** `playwright._impl._errors.Error: Executable doesn't exist`
-
-**Solution:**
-```bash
-playwright install chromium
-```
-
-If that fails:
 ```bash
 pip install playwright
 python -m playwright install chromium
 ```
 
----
+If unavailable, use `--visual off` where supported.
 
-### Permission Denied Errors
+## Runner Command Fails
 
-**Symptom:** `Permission denied` when running scripts
+**Symptom:** Non-zero exit code from a `run_*.py` script.
 
-**Solution:**
-```bash
-chmod +x ~/.claude/skills/seo/scripts/*.py
-chmod +x ~/.claude/skills/seo/hooks/*.py
-chmod +x ~/.claude/skills/seo/hooks/*.sh
-```
+### Checks
 
----
-
-### Hook Not Triggering
-
-**Symptom:** Schema validation hook not running
-
-**Check:**
-
-1. Verify hook is in settings:
-```bash
-cat ~/.claude/settings.json
-```
-
-2. Ensure correct path:
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
-            "exitCodes": { "2": "block" }
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-3. Test hook directly:
-```bash
-python3 ~/.claude/skills/seo/hooks/validate-schema.py test.html
-```
-
----
-
-### Subagent Not Found
-
-**Symptom:** `Agent 'seo-technical' not found`
-
-**Solution:**
-
-1. Verify agent files exist:
-```bash
-ls ~/.claude/agents/seo-*.md
-```
-
-2. Check agent frontmatter:
-```bash
-head -5 ~/.claude/agents/seo-technical.md
-```
-
-3. Re-install agents:
-```bash
-cp /path/to/claude-seo/agents/*.md ~/.claude/agents/
-```
-
----
-
-### Timeout Errors
-
-**Symptom:** `Request timed out after 30 seconds`
-
-**Solutions:**
-
-1. The target site may be slow — try again
-2. Increase timeout in script calls
-3. Check your network connection
-4. Some sites block automated requests
-
----
-
-### Schema Validation False Positives
-
-**Symptom:** Hook blocks valid schema
-
-**Check:**
-
-1. Ensure placeholders are replaced
-2. Verify @context is `https://schema.org`
-3. Check for deprecated types (HowTo, SpecialAnnouncement)
-4. Validate at [Google's Rich Results Test](https://search.google.com/test/rich-results)
-
----
-
-### Slow Audit Performance
-
-**Symptom:** Full audit takes too long
-
-**Solutions:**
-
-1. Audit crawls up to 500 pages — large sites take time
-2. Subagents run in parallel to speed up analysis
-3. For faster checks, use `/seo page` on specific URLs
-4. Check if site has slow response times
-
----
-
-## Getting Help
-
-1. **Check the docs:** Review [COMMANDS.md](COMMANDS.md) and [ARCHITECTURE.md](ARCHITECTURE.md)
-
-2. **GitHub Issues:** Report bugs at the repository
-
-3. **Logs:** Check Claude Code's output for error details
-
-## Debug Mode
-
-To see detailed output, check Claude Code's internal logs or run scripts directly:
+1. Confirm CLI syntax:
 
 ```bash
-# Test fetch
-python3 ~/.claude/skills/seo/scripts/fetch_page.py https://example.com
-
-# Test parse
-python3 ~/.claude/skills/seo/scripts/parse_html.py page.html --json
-
-# Test screenshot
-python3 ~/.claude/skills/seo/scripts/capture_screenshot.py https://example.com
+python skills/seo-audit/scripts/run_audit.py --help
 ```
+
+2. Use explicit output directory:
+
+```bash
+python skills/seo-page/scripts/run_page_audit.py https://example.com --output-dir out/page
+```
+
+3. For URL-based scans, test network and certificate trust:
+
+```bash
+python -c "import requests; print(requests.get('https://example.com', timeout=10).status_code)"
+```
+
+## SSL Certificate Verification Errors
+
+**Symptom:** `CERTIFICATE_VERIFY_FAILED`.
+
+### Notes
+
+- This is usually local trust-store configuration, proxy interception, or enterprise TLS middleware.
+- It is not typically a skill logic bug.
+
+### Fix paths
+
+1. Update your OS/root certificate store.
+2. Ensure Python uses current cert bundles.
+3. Re-test with a known public domain after trust-store fixes.
+
+## "URL blocked as non-public" Errors
+
+**Symptom:** Runner refuses localhost/private/reserved hosts.
+
+### Cause
+
+Security guardrails intentionally block SSRF-style targets.
+
+### Fix
+
+- Use a public `http` or `https` URL.
+- For local testing, use `--html-file` mode where available (`seo-geo`, `seo-images`, `seo-schema`, `seo-hreflang`, `seo-sitemap`).
+
+## Slow Full Audits
+
+**Symptom:** Full audit takes longer than expected.
+
+### Notes
+
+- Large sites increase crawl duration.
+- Optional visual checks add runtime cost.
+- Network latency and origin throttling affect total runtime.
+
+### Fast-path options
+
+1. Lower crawl size (`--max-pages` on full audit)
+2. Disable visuals (`--visual off`)
+3. Run targeted skills first (`seo-page`, `seo-technical`, `seo-content`)
+
+## Still Stuck
+
+Provide:
+
+1. Exact command used
+2. Full stderr output
+3. Your Python version (`python --version`)
+4. Whether you ran inside a virtual environment

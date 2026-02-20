@@ -1,27 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Claude SEO Installer
+# Codex SEO Installer
 # Wraps everything in main() to prevent partial execution on network failure
 
 main() {
-    SKILL_DIR="${HOME}/.claude/skills/seo"
-    AGENT_DIR="${HOME}/.claude/agents"
-    REPO_URL="https://github.com/AgriciDaniel/claude-seo"
+    CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
+    SKILL_DIR="${CODEX_ROOT}/skills/seo"
+    AGENT_DIR="${CODEX_ROOT}/agents"
+    REPO_URL="https://github.com/avalonreset/codex-seo"
+    RAW_URL="https://raw.githubusercontent.com/avalonreset/codex-seo/main"
 
-    echo "════════════════════════════════════════"
-    echo "║   Claude SEO - Installer             ║"
-    echo "║   Claude Code SEO Skill              ║"
-    echo "════════════════════════════════════════"
+    echo "========================================"
+    echo "  Codex SEO - Installer"
+    echo "  Codex Skill Suite"
+    echo "========================================"
     echo ""
 
     # Check prerequisites
-    command -v python3 >/dev/null 2>&1 || { echo "✗ Python 3 is required but not installed."; exit 1; }
-    command -v git >/dev/null 2>&1 || { echo "✗ Git is required but not installed."; exit 1; }
+    command -v python3 >/dev/null 2>&1 || { echo "[ERROR] Python 3 is required but not installed."; exit 1; }
+    command -v git >/dev/null 2>&1 || { echo "[ERROR] Git is required but not installed."; exit 1; }
 
     # Check Python version
     PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-    echo "✓ Python ${PYTHON_VERSION} detected"
+    echo "[OK] Python ${PYTHON_VERSION} detected"
 
     # Create directories
     mkdir -p "${SKILL_DIR}"
@@ -31,87 +33,87 @@ main() {
     TEMP_DIR=$(mktemp -d)
     trap "rm -rf ${TEMP_DIR}" EXIT
 
-    echo "↓ Downloading Claude SEO..."
-    git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/claude-seo" 2>/dev/null
+    echo "[INFO] Downloading Codex SEO..."
+    git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/codex-seo" 2>/dev/null
 
     # Copy skill files
-    echo "→ Installing skill files..."
-    cp -r "${TEMP_DIR}/claude-seo/seo/"* "${SKILL_DIR}/"
+    echo "[INFO] Installing skill files..."
+    cp -r "${TEMP_DIR}/codex-seo/seo/"* "${SKILL_DIR}/"
 
     # Copy sub-skills
-    if [ -d "${TEMP_DIR}/claude-seo/skills" ]; then
-        for skill_dir in "${TEMP_DIR}/claude-seo/skills"/*/; do
+    if [ -d "${TEMP_DIR}/codex-seo/skills" ]; then
+        for skill_dir in "${TEMP_DIR}/codex-seo/skills"/*/; do
             skill_name=$(basename "${skill_dir}")
-            target="${HOME}/.claude/skills/${skill_name}"
+            target="${CODEX_ROOT}/skills/${skill_name}"
             mkdir -p "${target}"
             cp -r "${skill_dir}"* "${target}/"
         done
     fi
 
     # Copy schema templates
-    if [ -d "${TEMP_DIR}/claude-seo/schema" ]; then
+    if [ -d "${TEMP_DIR}/codex-seo/schema" ]; then
         mkdir -p "${SKILL_DIR}/schema"
-        cp -r "${TEMP_DIR}/claude-seo/schema/"* "${SKILL_DIR}/schema/"
+        cp -r "${TEMP_DIR}/codex-seo/schema/"* "${SKILL_DIR}/schema/"
     fi
 
     # Copy reference docs
-    if [ -d "${TEMP_DIR}/claude-seo/pdf" ]; then
+    if [ -d "${TEMP_DIR}/codex-seo/pdf" ]; then
         mkdir -p "${SKILL_DIR}/pdf"
-        cp -r "${TEMP_DIR}/claude-seo/pdf/"* "${SKILL_DIR}/pdf/"
+        cp -r "${TEMP_DIR}/codex-seo/pdf/"* "${SKILL_DIR}/pdf/"
     fi
 
-    # Copy agents
-    echo "→ Installing subagents..."
-    cp -r "${TEMP_DIR}/claude-seo/agents/"*.md "${AGENT_DIR}/" 2>/dev/null || true
+    # Copy agent profiles
+    echo "[INFO] Installing agent profiles..."
+    cp -r "${TEMP_DIR}/codex-seo/agents/"*.md "${AGENT_DIR}/" 2>/dev/null || true
 
     # Copy shared scripts
-    if [ -d "${TEMP_DIR}/claude-seo/scripts" ]; then
+    if [ -d "${TEMP_DIR}/codex-seo/scripts" ]; then
         mkdir -p "${SKILL_DIR}/scripts"
-        cp -r "${TEMP_DIR}/claude-seo/scripts/"* "${SKILL_DIR}/scripts/"
+        cp -r "${TEMP_DIR}/codex-seo/scripts/"* "${SKILL_DIR}/scripts/"
     fi
 
     # Copy hooks
-    if [ -d "${TEMP_DIR}/claude-seo/hooks" ]; then
+    if [ -d "${TEMP_DIR}/codex-seo/hooks" ]; then
         mkdir -p "${SKILL_DIR}/hooks"
-        cp -r "${TEMP_DIR}/claude-seo/hooks/"* "${SKILL_DIR}/hooks/"
+        cp -r "${TEMP_DIR}/codex-seo/hooks/"* "${SKILL_DIR}/hooks/"
         chmod +x "${SKILL_DIR}/hooks/"*.sh 2>/dev/null || true
         chmod +x "${SKILL_DIR}/hooks/"*.py 2>/dev/null || true
     fi
 
     # Copy requirements.txt to skill dir so users can retry later
-    cp "${TEMP_DIR}/claude-seo/requirements.txt" "${SKILL_DIR}/requirements.txt" 2>/dev/null || true
+    cp "${TEMP_DIR}/codex-seo/requirements.txt" "${SKILL_DIR}/requirements.txt" 2>/dev/null || true
 
     # Install Python dependencies (venv preferred, --user fallback)
-    echo "→ Installing Python dependencies..."
+    echo "[INFO] Installing Python dependencies..."
     VENV_DIR="${SKILL_DIR}/.venv"
     if python3 -m venv "${VENV_DIR}" 2>/dev/null; then
-        "${VENV_DIR}/bin/pip" install --quiet -r "${TEMP_DIR}/claude-seo/requirements.txt" 2>/dev/null && \
-            echo "  ✓ Installed in venv at ${VENV_DIR}" || \
-            echo "  ⚠  Venv pip install failed. Run: ${VENV_DIR}/bin/pip install -r ${SKILL_DIR}/requirements.txt"
+        "${VENV_DIR}/bin/pip" install --quiet -r "${TEMP_DIR}/codex-seo/requirements.txt" 2>/dev/null && \
+            echo "  [OK] Installed in venv at ${VENV_DIR}" || \
+            echo "  [WARN] Venv pip install failed. Run: ${VENV_DIR}/bin/pip install -r ${SKILL_DIR}/requirements.txt"
     else
-        pip install --quiet --user -r "${TEMP_DIR}/claude-seo/requirements.txt" 2>/dev/null || \
-        echo "  ⚠  Could not auto-install. Run: pip install --user -r ${SKILL_DIR}/requirements.txt"
+        pip install --quiet --user -r "${TEMP_DIR}/codex-seo/requirements.txt" 2>/dev/null || \
+        echo "  [WARN] Could not auto-install. Run: pip install --user -r ${SKILL_DIR}/requirements.txt"
     fi
 
     # Optional: Install Playwright browsers (for screenshot analysis)
-    echo "→ Installing Playwright browsers (optional, for visual analysis)..."
+    echo "[INFO] Installing Playwright browsers (optional, for visual analysis)..."
     if [ -f "${VENV_DIR}/bin/playwright" ]; then
         "${VENV_DIR}/bin/python" -m playwright install chromium 2>/dev/null || \
-        echo "  ⚠  Playwright install failed. Visual analysis will use WebFetch fallback."
+        echo "  [WARN] Playwright install failed. Visual analysis will use WebFetch fallback."
     else
         python3 -m playwright install chromium 2>/dev/null || \
-        echo "  ⚠  Playwright install failed. Visual analysis will use WebFetch fallback."
+        echo "  [WARN] Playwright install failed. Visual analysis will use WebFetch fallback."
     fi
 
     echo ""
-    echo "✓ Claude SEO installed successfully!"
+    echo "[OK] Codex SEO installed successfully!"
     echo ""
     echo "Usage:"
-    echo "  1. Start Claude Code:  claude"
-    echo "  2. Run commands:       /seo audit https://example.com"
+    echo "  1. Start Codex"
+    echo "  2. Ask for SEO workflows (e.g., full audit, technical audit, schema validation)"
     echo ""
     echo "Python deps location: ${SKILL_DIR}/requirements.txt"
-    echo "To uninstall: curl -fsSL ${REPO_URL}/raw/main/uninstall.sh | bash"
+    echo "To uninstall: curl -fsSL ${RAW_URL}/uninstall.sh | bash"
 }
 
 main "$@"

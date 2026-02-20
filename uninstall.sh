@@ -2,22 +2,23 @@
 set -euo pipefail
 
 main() {
-    echo "→ Uninstalling Claude SEO..."
+    CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
+    echo "→ Uninstalling Codex SEO..."
 
     # Remove main skill (includes venv and requirements.txt)
-    rm -rf "${HOME}/.claude/skills/seo"
+    rm -rf "${CODEX_ROOT}/skills/seo"
 
     # Remove sub-skills
     for skill in seo-audit seo-competitor-pages seo-content seo-geo seo-hreflang seo-images seo-page seo-plan seo-programmatic seo-schema seo-sitemap seo-technical; do
-        rm -rf "${HOME}/.claude/skills/${skill}"
+        rm -rf "${CODEX_ROOT}/skills/${skill}"
     done
 
-    # Remove agents
+    # Remove agent profiles
     for agent in seo-technical seo-content seo-schema seo-sitemap seo-performance seo-visual; do
-        rm -f "${HOME}/.claude/agents/${agent}.md"
+        rm -f "${CODEX_ROOT}/agents/${agent}.md"
     done
 
-    echo "✓ Claude SEO uninstalled."
+    echo "✓ Codex SEO uninstalled."
 }
 
 main "$@"

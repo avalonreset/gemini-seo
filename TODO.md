@@ -1,4 +1,4 @@
-# TODO — claude-seo
+# TODO — codex-seo
 
 ## Completed in v1.2.0
 
@@ -22,10 +22,10 @@
 
 - [ ] **Subagent timeout/compact handling** (Priority: Medium, from @JawandS #3)
   Primary agent sometimes terminates before subagents finish. Consider encouraging subagents
-  to run /compact and adding explicit wait logic.
+  to compact context and adding explicit wait logic.
 
 - [ ] **Native Chrome tools vs Playwright** (Priority: Medium, from @artyomsv #7, @btafoya PR #8)
-  Claude Code has native browser automation. Evaluate replacing Playwright with built-in tools
+  Codex may provide native browser automation in some environments. Evaluate replacing Playwright with built-in tools
   to eliminate the ~200MB Chromium dependency.
 
 ## Deferred from February 2026 Research Report

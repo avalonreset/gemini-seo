@@ -5,13 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-20
+
+### Changed
+- Full documentation port to Codex conventions:
+  - `README.md`
+  - `docs/COMMANDS.md`
+  - `docs/INSTALLATION.md`
+  - `docs/ARCHITECTURE.md`
+  - `docs/TROUBLESHOOTING.md`
+  - `seo/SKILL.md`
+- Installer/uninstaller paths switched from `~/.claude` to `$CODEX_HOME` (default `~/.codex`).
+- Installer source URL switched to `https://github.com/avalonreset/codex-seo`.
+- Hook examples updated to Codex settings/path conventions.
+
+### Security
+- Preserved previous SSRF and input-hardening fixes across all deterministic runners.
+
+---
+
 ## [1.2.0] - 2026-02-19
 
 ### Security
 - **SSRF prevention**: Added private IP blocking to `fetch_page.py` and `analyze_visual.py`
 - **Path traversal prevention**: Added output path sanitization to `capture_screenshot.py` and file validation to `parse_html.py`
 - **Install hardening**: Removed `--break-system-packages`, switched to venv-based pip install
-- **requirements.txt**: Now persisted to `~/.claude/skills/seo/` for user retry
+- **requirements.txt**: Persisted to the installed skill directory for user retry
 
 ### Fixed
 - **YAML frontmatter parsing**: Removed HTML comments before `---` delimiter in 8 files (skills: seo-content, seo-images, seo-programmatic, seo-schema, seo-technical; agents: seo-content, seo-performance, seo-technical). Thanks @kylewhirl for identifying this in the codex-seo fork.
@@ -19,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **requirements.txt missing after install**: Now copied to skill directory so users can retry (#1)
 
 ### Changed
-- Python dependencies now installed in a venv at `~/.claude/skills/seo/.venv/` with `--user` fallback (#2)
+- Python dependencies now installed in a venv under the installed skill path with `--user` fallback (#2)
 - Playwright marked as explicitly optional in install output
 - Windows installer uses `Resolve-Python` helper for robust Python detection (#5)
 
@@ -62,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-02-07
 
 ### Added
-- Initial release of Claude SEO
+- Initial upstream release of Claude SEO
 - 9 specialized skills: audit, page, sitemap, schema, images, technical, content, geo, plan
 - 6 subagents for parallel analysis: seo-technical, seo-content, seo-schema, seo-sitemap, seo-performance, seo-visual
 - Industry templates: SaaS, local service, e-commerce, publisher, agency, generic
@@ -84,8 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bounded Python dependency pinning with CVE-aware minimums (lxml >= 5.3.2)
 
 ### Architecture
-- Follows Anthropic's official Claude Code skill specification (February 2026)
+- Upstream architecture based on Anthropic's Claude Code skill specification (February 2026)
 - Standard directory layout: `scripts/`, `references/`, `assets/`
 - Valid hook matchers (tool name only, no argument patterns)
 - Correct subagent frontmatter fields (name, description, tools)
-- CLI command is `claude` (not `claude-code`)
+- Upstream CLI command was `claude` (not `claude-code`)
