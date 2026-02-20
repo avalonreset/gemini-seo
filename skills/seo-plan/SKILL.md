@@ -1,106 +1,79 @@
 ---
 name: seo-plan
 description: >
-  Strategic SEO planning for new or existing websites. Industry-specific
-  templates, competitive analysis, content strategy, and implementation
-  roadmap. Use when user says "SEO plan", "SEO strategy", "content strategy",
-  "site architecture", or "SEO roadmap".
+  Strategic SEO planning for new or existing websites with deterministic output.
+  Generates industry-specific strategy docs, competitive gap analysis, content
+  calendar, implementation roadmap, and site architecture plans. Use for prompts
+  like "SEO strategy", "SEO roadmap", "content plan", or "site architecture".
 ---
 
 # Strategic SEO Planning
 
-## Process
+Use deterministic execution to produce reproducible planning artifacts.
 
-### 1. Discovery
-- Business type, target audience, competitors, goals
-- Current site assessment (if exists)
-- Budget and timeline constraints
-- Key performance indicators (KPIs)
+## Runtime
 
-### 2. Competitive Analysis
-- Identify top 5 competitors
-- Analyze their content strategy, schema usage, technical setup
-- Identify keyword gaps and content opportunities
-- Assess their E-E-A-T signals
-- Estimate their domain authority
+- Main runner: `skills/seo-plan/scripts/run_plan.py`
+- Dependencies: standard library only (see `skills/seo-plan/requirements.txt`)
+- Industry templates: `skills/seo-plan/assets/*.md`
 
-### 3. Architecture Design
-- Load industry template from `assets/` directory
-- Design URL hierarchy and content pillars
-- Plan internal linking strategy
-- Sitemap structure with quality gates applied
-- Information architecture for user journeys
+## Quick Run
 
-### 4. Content Strategy
-- Content gaps vs competitors
-- Page types and estimated counts
-- Blog/resource topics and publishing cadence
-- E-E-A-T building plan (author bios, credentials, experience signals)
-- Content calendar with priorities
+Basic SaaS plan:
 
-### 5. Technical Foundation
-- Hosting and performance requirements
-- Schema markup plan per page type
-- Core Web Vitals baseline targets
-- AI search readiness requirements
-- Mobile-first considerations
+```bash
+python skills/seo-plan/scripts/run_plan.py \
+  --industry saas \
+  --business-name "Acme CRM" \
+  --website https://example.com \
+  --goals "increase non-brand demos, improve comparison-page rankings" \
+  --competitors "HubSpot,Salesforce,Pipedrive" \
+  --content-pillars "crm automation,sales forecasting,pipeline management" \
+  --output-dir seo-plan-output
+```
 
-### 6. Implementation Roadmap (4 phases)
+Run from brief JSON:
 
-#### Phase 1 — Foundation (weeks 1-4)
-- Technical setup and infrastructure
-- Core pages (home, about, contact, main services)
-- Essential schema implementation
-- Analytics and tracking setup
+```bash
+python skills/seo-plan/scripts/run_plan.py \
+  --brief-file seo-brief.json \
+  --output-dir seo-plan-output
+```
 
-#### Phase 2 — Expansion (weeks 5-12)
-- Content creation for primary pages
-- Blog launch with initial posts
-- Internal linking structure
-- Local SEO setup (if applicable)
+## Inputs
 
-#### Phase 3 — Scale (weeks 13-24)
-- Advanced content development
-- Link building and outreach
-- GEO optimization
-- Performance optimization
+- `--industry`: `saas|local-service|ecommerce|publisher|agency|generic`
+- `--brief-file` (optional): JSON brief with planning inputs
+- `--baseline-kpis-file` (optional): JSON object for KPI baselines
+- `--business-name`, `--website`, `--audience`, `--budget`
+- `--goals`, `--competitors`, `--content-pillars`, `--markets` (comma-separated)
+- `--timeline-months` (default `12`)
+- `--cadence` (`weekly|biweekly|monthly`, default `weekly`)
+- `--start-date` (`YYYY-MM-DD`, defaults to current UTC date)
+- `--output-dir`
 
-#### Phase 4 — Authority (months 7-12)
-- Thought leadership content
-- PR and media mentions
-- Advanced schema implementation
-- Continuous optimization
+## Checks
 
-## Industry Templates
+1. Select and load the correct industry template from `assets/`.
+2. Validate URL format and normalize list-based inputs.
+3. Build KPI targets using provided baselines when available.
+4. Generate competitor opportunity matrix and gap themes.
+5. Generate a cadence-based content calendar.
+6. Produce a 4-phase implementation roadmap with risks and dependencies.
+7. Produce site architecture and internal-linking guidance from template structure.
 
-Load from `assets/` directory:
-- `saas.md` — SaaS/software companies
-- `local-service.md` — Local service businesses
-- `ecommerce.md` — E-commerce stores
-- `publisher.md` — Content publishers/media
-- `agency.md` — Agencies and consultancies
-- `generic.md` — General business template
+## Guardrails
 
-## Output
+1. Do not fabricate verified competitor claims; mark findings as planning assumptions.
+2. Keep generated plans tied to user-provided goals, timeline, and market scope.
+3. Cap unrealistic timelines by warning when `timeline-months < 6`.
+4. Preserve deterministic behavior from identical inputs.
 
-### Deliverables
-- `SEO-STRATEGY.md` — Complete strategic plan
-- `COMPETITOR-ANALYSIS.md` — Competitive insights
-- `CONTENT-CALENDAR.md` — Content roadmap
-- `IMPLEMENTATION-ROADMAP.md` — Phased action plan
-- `SITE-STRUCTURE.md` — URL hierarchy and architecture
+## Output Contract
 
-### KPI Targets
-| Metric | Baseline | 3 Month | 6 Month | 12 Month |
-|--------|----------|---------|---------|----------|
-| Organic Traffic | ... | ... | ... | ... |
-| Keyword Rankings | ... | ... | ... | ... |
-| Domain Authority | ... | ... | ... | ... |
-| Indexed Pages | ... | ... | ... | ... |
-| Core Web Vitals | ... | ... | ... | ... |
-
-### Success Criteria
-- Clear, measurable goals per phase
-- Resource requirements defined
-- Dependencies identified
-- Risk mitigation strategies
+- `SEO-STRATEGY.md`
+- `COMPETITOR-ANALYSIS.md`
+- `CONTENT-CALENDAR.md`
+- `IMPLEMENTATION-ROADMAP.md`
+- `SITE-STRUCTURE.md`
+- `SUMMARY.json`
