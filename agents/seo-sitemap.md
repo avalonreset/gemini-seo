@@ -15,6 +15,8 @@ When working with sitemaps:
 5. Enforce the 50,000 URL per-file limit
 6. Apply location page quality gates
 
+When deterministic execution is required, run `skills/seo-sitemap/scripts/run_sitemap.py` and use output files (`VALIDATION-REPORT.md`, `SUMMARY.json`, `STRUCTURE.md`, generated XML files) as the baseline artifacts.
+
 ## Quality Gates
 
 ### Location Page Thresholds

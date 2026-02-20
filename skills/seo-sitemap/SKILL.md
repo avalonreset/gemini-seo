@@ -1,104 +1,93 @@
 ---
 name: seo-sitemap
 description: >
-  Analyze existing XML sitemaps or generate new ones with industry templates.
-  Validates format, URLs, and structure. Use when user says "sitemap",
-  "generate sitemap", "sitemap issues", or "XML sitemap".
+  Analyze existing XML sitemaps or generate new sitemap files from URL lists
+  with protocol checks, status sampling, and location-page quality gates.
+  Use for prompts like "sitemap audit", "sitemap issues", "generate sitemap",
+  or "validate XML sitemap".
 ---
 
-# Sitemap Analysis & Generation
+# Sitemap Analysis and Generation
 
-## Mode 1: Analyze Existing Sitemap
+Use deterministic execution for reproducible sitemap validation and output files.
 
-### Validation Checks
-- Valid XML format
-- URL count <50,000 per file (protocol limit)
-- All URLs return HTTP 200
-- `<lastmod>` dates are accurate (not all identical)
-- No deprecated tags: `<priority>` and `<changefreq>` are ignored by Google
-- Sitemap referenced in robots.txt
-- Compare crawled pages vs sitemap — flag missing pages
+## Runtime
 
-### Quality Signals
-- Sitemap index file if >50k URLs
-- Split by content type (pages, posts, images, videos)
-- No non-canonical URLs in sitemap
-- No noindexed URLs in sitemap
-- No redirected URLs in sitemap
-- HTTPS URLs only (no HTTP)
+- Main runner: `skills/seo-sitemap/scripts/run_sitemap.py`
+- Dependencies: `skills/seo-sitemap/requirements.txt`
 
-### Common Issues
-| Issue | Severity | Fix |
-|-------|----------|-----|
-| >50k URLs in single file | Critical | Split with sitemap index |
-| Non-200 URLs | High | Remove or fix broken URLs |
-| Noindexed URLs included | High | Remove from sitemap |
-| Redirected URLs included | Medium | Update to final URLs |
-| All identical lastmod | Low | Use actual modification dates |
-| Priority/changefreq used | Info | Can remove (ignored by Google) |
+## Quick Run
 
-## Mode 2: Generate New Sitemap
+Analyze:
 
-### Process
-1. Ask for business type (or auto-detect from existing site)
-2. Load industry template from `assets/` directory
-3. Interactive structure planning with user
-4. Apply quality gates:
-   - ⚠️ WARNING at 30+ location pages (require 60%+ unique content)
-   - 🛑 HARD STOP at 50+ location pages (require justification)
-5. Generate valid XML output
-6. Split at 50k URLs with sitemap index
-7. Generate STRUCTURE.md documentation
-
-### Safe Programmatic Pages (OK at scale)
-✅ Integration pages (with real setup docs)
-✅ Template/tool pages (with downloadable content)
-✅ Glossary pages (200+ word definitions)
-✅ Product pages (unique specs, reviews)
-✅ User profile pages (user-generated content)
-
-### Penalty Risk (avoid at scale)
-❌ Location pages with only city name swapped
-❌ "Best [tool] for [industry]" without industry-specific value
-❌ "[Competitor] alternative" without real comparison data
-❌ AI-generated pages without human review and unique value
-
-## Sitemap Format
-
-### Standard Sitemap
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://example.com/page</loc>
-    <lastmod>2026-02-07</lastmod>
-  </url>
-</urlset>
+```bash
+python skills/seo-sitemap/scripts/run_sitemap.py analyze \
+  --sitemap-url https://example.com/sitemap.xml \
+  --output-dir seo-sitemap-output
 ```
 
-### Sitemap Index (for >50k URLs)
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap>
-    <loc>https://example.com/sitemap-pages.xml</loc>
-    <lastmod>2026-02-07</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://example.com/sitemap-posts.xml</loc>
-    <lastmod>2026-02-07</lastmod>
-  </sitemap>
-</sitemapindex>
+Generate:
+
+```bash
+python skills/seo-sitemap/scripts/run_sitemap.py generate \
+  --base-url https://example.com \
+  --urls-file urls.txt \
+  --output-dir seo-sitemap-output
 ```
 
-## Output
+## Analyze Mode
 
-### For Analysis
-- `VALIDATION-REPORT.md` — analysis results
-- Issues list with severity
-- Recommendations
+### Inputs
 
-### For Generation
-- `sitemap.xml` (or split files with index)
-- `STRUCTURE.md` — site architecture documentation
-- URL count and organization summary
+- `--sitemap-url` or `--sitemap-file` (one required)
+- `--crawl-urls-file` (optional): newline list for coverage diff
+- `--status-sample-limit` (default `200`)
+- `--noindex-scan-limit` (default `50`)
+- `--include-meta-noindex` (optional): parse HTML snippets for meta noindex
+
+### Checks
+
+1. XML validity and root type (`urlset`/`sitemapindex`)
+2. URL file size limit (`<= 50,000` per sitemap file)
+3. Non-200 and redirected URL sampling
+4. Noindex signal sampling (`X-Robots-Tag`, optional meta robots)
+5. HTTPS-only URL enforcement
+6. Deprecated tag detection (`priority`, `changefreq`)
+7. Identical `<lastmod>` pattern detection
+8. robots.txt sitemap reference check (URL mode)
+9. Optional crawl-vs-sitemap coverage diff
+
+### Output
+
+- `VALIDATION-REPORT.md`
+- `SUMMARY.json`
+
+## Generate Mode
+
+### Inputs
+
+- `--base-url` (required)
+- `--urls-file` (required): newline-delimited URLs
+- `--split-size` (default `50000`, max `50000`)
+- `--default-lastmod` (optional `YYYY-MM-DD`)
+- `--allow-location-scale` (optional hard-stop override)
+
+### Quality Gates
+
+1. At `30+` location-like URLs: emit warning (require meaningful uniqueness).
+2. At `50+` location-like URLs: hard stop unless `--allow-location-scale` is set.
+3. Skip out-of-scope URLs (host mismatch against base URL).
+
+### Output
+
+- `sitemap.xml` (single file) or split `sitemap-*.xml` plus `sitemap_index.xml`
+- `STRUCTURE.md`
+- `SUMMARY.json`
+
+## Guardrails
+
+1. Only `http`/`https` URLs are accepted.
+2. Reject localhost/private/reserved/loopback targets.
+3. Do not treat sampled URL checks as full-site crawl guarantees.
+4. Do not output deprecated sitemap tags by default.
+
