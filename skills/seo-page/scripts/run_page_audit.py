@@ -62,9 +62,16 @@ def normalize_url(raw: str) -> str:
         parsed = urlparse(value)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
-    host = parsed.hostname or ""
+    netloc = parsed.netloc or (parsed.hostname or "")
     path = parsed.path or "/"
-    return urlunparse((parsed.scheme, host, path, "", parsed.query, ""))
+    return urlunparse((parsed.scheme, netloc, path, "", parsed.query, ""))
+
+
+def canonical_host(host: str | None) -> str:
+    normalized = (host or "").strip().lower().rstrip(".")
+    if normalized.startswith("www."):
+        return normalized[4:]
+    return normalized
 
 
 def is_public_target(url: str) -> bool:
@@ -72,12 +79,19 @@ def is_public_target(url: str) -> bool:
     if not host:
         return False
     try:
-        ip = ipaddress.ip_address(socket.gethostbyname(host))
-        if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local or ip.is_multicast:
-            return False
-    except (socket.gaierror, ValueError):
+        info = socket.getaddrinfo(host, None)
+    except socket.gaierror:
         return False
-    return True
+    for _, _, _, _, sockaddr in info:
+        ip_text = sockaddr[0]
+        try:
+            ip = ipaddress.ip_address(ip_text)
+        except ValueError:
+            continue
+        if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local or ip.is_multicast:
+            continue
+        return True
+    return False
 
 
 def fetch(url: str, timeout: int) -> dict[str, Any]:
@@ -172,6 +186,17 @@ def keyword_density(text: str, keyword: str | None) -> dict[str, Any]:
     return {"keyword": keyword, "occurrences": occurrences, "density_pct": round((occurrences / len(words)) * 100, 2)}
 
 
+def normalize_schema_type(value: str) -> str:
+    cleaned = str(value or "").strip().rstrip("/")
+    if not cleaned:
+        return ""
+    if "#" in cleaned:
+        cleaned = cleaned.rsplit("#", 1)[-1]
+    if "/" in cleaned:
+        cleaned = cleaned.rsplit("/", 1)[-1]
+    return cleaned.strip().lower()
+
+
 def parse_schema(soup: BeautifulSoup) -> dict[str, Any]:
     blocks = soup.find_all("script", type="application/ld+json")
     types: list[str] = []
@@ -200,12 +225,14 @@ def parse_schema(soup: BeautifulSoup) -> dict[str, Any]:
                 if "@graph" in node:
                     stack.append(node["@graph"])
     unique = sorted(set(t.strip() for t in types if t and str(t).strip()))
+    normalized_types = sorted(set(t for t in (normalize_schema_type(x) for x in unique) if t))
     return {
         "block_count": len(blocks),
         "invalid_count": invalid,
         "types": unique,
-        "deprecated_howto": any(t.lower() == "howto" for t in unique),
-        "restricted_faq": any(t.lower() == "faqpage" for t in unique),
+        "normalized_types": normalized_types,
+        "deprecated_howto": "howto" in normalized_types,
+        "restricted_faq": "faqpage" in normalized_types,
     }
 
 
@@ -429,10 +456,10 @@ def main() -> int:
 
     links_internal: list[str] = []
     links_external = 0
-    host = (urlparse(final_url).hostname or "").lower()
+    host = canonical_host(urlparse(final_url).hostname)
     for a in soup.find_all("a", href=True):
         href = urljoin(final_url, a.get("href", ""))
-        h = (urlparse(href).hostname or "").lower()
+        h = canonical_host(urlparse(href).hostname)
         if h == host:
             links_internal.append(href)
         elif h:
@@ -474,7 +501,7 @@ def main() -> int:
     visual = visual_capture(final_url, out, args.visual)
 
     suggestions = []
-    existing = {x.lower() for x in schema["types"]}
+    existing = set(schema.get("normalized_types") or [])
     if "organization" not in existing and "website" not in existing:
         suggestions.append(
             {
