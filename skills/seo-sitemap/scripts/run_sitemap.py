@@ -221,14 +221,13 @@ def detect_noindex(target_url: str, timeout: int, include_meta: bool) -> tuple[b
 
 def probe_status(target_url: str, timeout: int) -> tuple[int | None, str | None]:
     try:
-        response = requests.head(target_url, headers=HEADERS, timeout=timeout, allow_redirects=False)
-        status = response.status_code
-        location = response.headers.get("Location")
-        if status in (405, 501):
-            response = requests.get(target_url, headers=HEADERS, timeout=timeout, allow_redirects=False, stream=True)
+        with requests.head(target_url, headers=HEADERS, timeout=timeout, allow_redirects=False) as response:
             status = response.status_code
             location = response.headers.get("Location")
-            response.close()
+        if status in (405, 501):
+            with requests.get(target_url, headers=HEADERS, timeout=timeout, allow_redirects=False, stream=True) as response:
+                status = response.status_code
+                location = response.headers.get("Location")
         return status, location
     except requests.exceptions.RequestException:
         return None, None
