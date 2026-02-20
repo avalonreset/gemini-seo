@@ -55,10 +55,31 @@ def infer_currency(pricing: str, explicit: str | None) -> str:
 
 
 def extract_price_amount(pricing: str) -> str | None:
-    match = re.search(r"(\d[\d.,]*)", pricing)
-    if not match:
-        return None
-    token = match.group(1).strip()
+    currency_match = re.search(r"(?:[$€£]|USD|EUR|GBP)\s*([0-9][0-9.,]*)", pricing, re.IGNORECASE)
+    if currency_match:
+        token = currency_match.group(1).strip()
+    else:
+        contextual = re.search(
+            r"(?:price|pricing|starts?\s+at|from)\D{0,20}([0-9][0-9.,]*)",
+            pricing,
+            re.IGNORECASE,
+        )
+        if contextual:
+            token = contextual.group(1).strip()
+        else:
+            numeric_tokens = re.findall(r"\d[\d.,]*", pricing)
+            if not numeric_tokens:
+                return None
+            token = numeric_tokens[0]
+            # Avoid mistaking year stamps for price values when possible.
+            if len(numeric_tokens) > 1 and re.fullmatch(r"(19|20)\d{2}", token):
+                token = next(
+                    (x for x in numeric_tokens[1:] if not re.fullmatch(r"(19|20)\d{2}", x)),
+                    token,
+                )
+            if re.fullmatch(r"(19|20)\d{2}", token):
+                return None
+
     if not token:
         return None
 
@@ -108,7 +129,11 @@ def product_record(
         raise ValueError(f"Invalid product entry for '{name}': expected object")
 
     url = (seed.get("url") or default_url or "").strip()
-    pricing = str(seed.get("pricing") or "Needs source verification").strip()
+    raw_pricing = seed.get("pricing")
+    if raw_pricing is None:
+        pricing = "Needs source verification"
+    else:
+        pricing = str(raw_pricing).strip() or "Needs source verification"
     price_currency = infer_currency(pricing, seed.get("price_currency"))
     price_amount = extract_price_amount(pricing) if "Needs source verification" not in pricing else None
     best_for = str(seed.get("best_for") or "Define ideal customer profile for this option.").strip()
