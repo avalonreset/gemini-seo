@@ -6,6 +6,9 @@
 
 Codex-first SEO skill suite with deterministic Python runners for repeatable audits, planning, and SEO artifact generation.
 
+> Built on the original **Claude SEO** concept by **Daniel** ([AgriciDaniel](https://github.com/AgriciDaniel)).  
+> Original project: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
+
 [![CI](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml/badge.svg)](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -147,6 +150,15 @@ Original upstream demo (Claude SEO):
 - https://www.youtube.com/watch?v=COMnNlUakQk
 
 Included here for project lineage and feature context.
+
+## Project Lineage and Shout-Out
+
+- The core idea, workflow design, and original execution came from Daniel's project: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
+- `codex-seo` extends that work into a Codex-native skill + runner model without losing the original spirit
+- If this repo helps you, please star both projects:
+  - [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
+  - [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
+- Follow Daniel's work: [github.com/AgriciDaniel](https://github.com/AgriciDaniel)
 
 ## MCP Integrations
 
