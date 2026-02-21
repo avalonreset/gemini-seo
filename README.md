@@ -1,4 +1,4 @@
-<!-- Updated: 2026-02-20 -->
+<!-- Updated: 2026-02-21 -->
 
 ![Codex SEO](screenshots/cover-image.jpeg?v=20260221h)
 
@@ -11,6 +11,8 @@ Codex-first SEO skill suite with deterministic Python runners for repeatable aud
 
 [![CI](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml/badge.svg)](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Community: [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) *(affiliate link, I may earn a commission if you join).*
 
 ## Why This Exists
 
