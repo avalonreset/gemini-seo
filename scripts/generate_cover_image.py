@@ -24,13 +24,21 @@ def load_font(size: int, *, mono: bool = False, bold: bool = False) -> ImageFont
         if bold:
             fonts.extend(
                 [
+                    "C:/Windows/Fonts/lucon.ttf",
+                    "C:/Windows/Fonts/CascadiaMono.ttf",
+                    "C:/Windows/Fonts/CascadiaCode.ttf",
                     "C:/Windows/Fonts/consolab.ttf",
+                    "C:/Windows/Fonts/courbd.ttf",
                     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
                 ]
             )
         fonts.extend(
             [
+                "C:/Windows/Fonts/lucon.ttf",
+                "C:/Windows/Fonts/CascadiaMono.ttf",
+                "C:/Windows/Fonts/CascadiaCode.ttf",
                 "C:/Windows/Fonts/consola.ttf",
+                "C:/Windows/Fonts/cour.ttf",
                 "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
             ]
         )
@@ -131,12 +139,10 @@ def draw_banner() -> Image.Image:
     d.rounded_rectangle(left, radius=30, fill=PANEL, outline=BORDER, width=2)
     d.rounded_rectangle(right, radius=30, fill=PANEL, outline=BORDER, width=2)
 
-    title_font = load_font(136, mono=True, bold=True)
-    sub_title_font = load_font(128, mono=True, bold=True)
-    meta_font = load_font(60, mono=False, bold=True)
-    small_mono = load_font(26, mono=True, bold=False)
-    tag_font = load_font(26, mono=True, bold=True)
-    right_title = load_font(54, mono=True, bold=True)
+    title_font = load_font(140, mono=True, bold=True)
+    sub_title_font = load_font(132, mono=True, bold=True)
+    meta_font = load_font(58, mono=True, bold=True)
+    right_title = load_font(52, mono=True, bold=True)
 
     # Left panel title
     for dx, dy, color in [(-2, -2, (0, 22, 12, 230)), (2, 2, (0, 22, 12, 230)), (0, 0, NEON)]:
@@ -147,11 +153,8 @@ def draw_banner() -> Image.Image:
     d.line((88, 372, 864, 372), fill=(78, 233, 173, 255), width=6)
     d.text((88, 406), "AI-POWERED SEO ANALYSIS", font=meta_font, fill=TEXT)
 
-    d.rounded_rectangle((86, 492, 864, 544), radius=14, fill=(2, 17, 11, 220), outline=(72, 223, 164, 210), width=2)
-    d.text((112, 505), "CODEX-FIRST  |  RUNNER-READY  |  HARDENED", font=tag_font, fill=(156, 255, 213, 255))
-
     # Right panel, intent style (not slash-command style)
-    d.text((1000, 62), "PROMPT INTENTS", font=right_title, fill=(164, 255, 217, 255))
+    d.text((1000, 62), "[PROMPT INTENTS]", font=right_title, fill=(164, 255, 217, 255))
     d.line((1000, 126, 1710, 126), fill=(83, 230, 169, 255), width=4)
 
     lines = [
@@ -175,14 +178,15 @@ def draw_banner() -> Image.Image:
         d.text((1002, y), safe_line, font=line_font, fill=(194, 255, 229, 242))
         y += 33
 
-    footer_font = load_font(14, mono=True, bold=False)
-    footer_text = clamp_text(
+    footer_text, footer_font = fit_text(
         d,
         "codex-seo // deterministic runners + skill orchestration",
-        footer_font,
         max_line_width,
+        mono=True,
+        bold=False,
+        start_size=26,
     )
-    d.text((1002, 532), footer_text, font=footer_font, fill=(126, 233, 184, 255))
+    d.text((1002, 522), footer_text, font=footer_font, fill=(126, 233, 184, 255))
 
     return bg.convert("RGB")
 
