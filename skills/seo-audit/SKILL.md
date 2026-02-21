@@ -60,7 +60,7 @@ python skills/seo-audit/scripts/run_audit.py https://example.com --output-dir se
    - Calculate category scores (0-100) and weighted total.
    - If a category is not measurable, mark it `Not Measured` and renormalize the remaining weights.
 6. Report:
-   - Produce an executive summary, issue list by priority, and a staged fix plan.
+   - Produce a dossier-style report: executive summary, business-type signals, specialist findings, KPI matrix, and phased roadmap.
 
 ## Crawl Defaults
 
@@ -75,8 +75,10 @@ Delay between requests: 1s
 
 ## Output Contract
 
-- `FULL-AUDIT-REPORT.md`: complete findings with evidence and URLs
-- `ACTION-PLAN.md`: prioritized remediation backlog (Critical > High > Medium > Low)
+- `FULL-AUDIT-REPORT.md`: long-form dossier with specialist narratives, findings, metrics, and evidence
+- `ACTION-PLAN.md`: phased remediation roadmap (0-48h, week 1, weeks 2-4, backlog)
+- `SUMMARY.json`: machine-readable score/stats output
+- `ISSUES.json`: enriched issue objects with category, impact, recommendation, and evidence
 - `screenshots/`: desktop/mobile captures when visual tooling is available
 
 ## Scoring Weights
