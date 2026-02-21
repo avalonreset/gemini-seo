@@ -133,9 +133,9 @@ def main():
         )
 
         if result["success"]:
-            print(f"  ✓ Saved to {output_path}")
+            print(f"  [OK] Saved to {output_path}")
         else:
-            print(f"  ✗ Failed: {result['error']}")
+            print(f"  [FAIL] {result['error']}")
 
 
 if __name__ == "__main__":

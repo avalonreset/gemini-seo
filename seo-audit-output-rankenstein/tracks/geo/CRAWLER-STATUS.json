@@ -1,0 +1,61 @@
+{
+  "robots_source": "http",
+  "robots_url": "https://rankenstein.pro/robots.txt",
+  "status_code": 200,
+  "rows": [
+    {
+      "crawler": "GPTBot",
+      "owner": "OpenAI",
+      "status": "Partial",
+      "reason": "Path-level disallow rules"
+    },
+    {
+      "crawler": "OAI-SearchBot",
+      "owner": "OpenAI",
+      "status": "Partial",
+      "reason": "Path-level disallow rules"
+    },
+    {
+      "crawler": "ChatGPT-User",
+      "owner": "OpenAI",
+      "status": "Partial",
+      "reason": "Path-level disallow rules"
+    },
+    {
+      "crawler": "ClaudeBot",
+      "owner": "Anthropic",
+      "status": "Partial",
+      "reason": "Path-level disallow rules"
+    },
+    {
+      "crawler": "PerplexityBot",
+      "owner": "Perplexity",
+      "status": "Partial",
+      "reason": "Path-level disallow rules"
+    },
+    {
+      "crawler": "CCBot",
+      "owner": "Common Crawl",
+      "status": "Blocked",
+      "reason": "Explicit Disallow /"
+    },
+    {
+      "crawler": "anthropic-ai",
+      "owner": "Anthropic",
+      "status": "Blocked",
+      "reason": "Explicit Disallow /"
+    },
+    {
+      "crawler": "Bytespider",
+      "owner": "ByteDance",
+      "status": "Blocked",
+      "reason": "Explicit Disallow /"
+    },
+    {
+      "crawler": "cohere-ai",
+      "owner": "Cohere",
+      "status": "Partial",
+      "reason": "Path-level disallow rules"
+    }
+  ]
+}

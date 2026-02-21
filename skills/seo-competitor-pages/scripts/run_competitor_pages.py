@@ -524,8 +524,9 @@ Minimum target: **{max(1500, total_target)} words**
 ## Conversion Layout
 1. Above fold: 2-3 sentence comparison summary + primary CTA.
 2. Mid page: CTA immediately after feature matrix.
-3. Bottom: final recommendation and next-step CTA.
-4. Keep competitor sections informational before CTA.
+3. Keep one trust element near each CTA (case study snippet, testimonial, or source citation).
+4. Bottom: final recommendation and next-step CTA.
+5. Keep competitor sections informational before CTA.
 
 ## Internal Linking Plan
 {related_block}

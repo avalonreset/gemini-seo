@@ -14,7 +14,19 @@ main() {
     done
 
     # Remove agent profiles
-    for agent in seo-technical seo-content seo-schema seo-sitemap seo-performance seo-visual; do
+    for agent in \
+        seo-competitor-pages \
+        seo-content \
+        seo-geo \
+        seo-hreflang \
+        seo-images \
+        seo-performance \
+        seo-plan \
+        seo-programmatic \
+        seo-schema \
+        seo-sitemap \
+        seo-technical \
+        seo-visual; do
         rm -f "${CODEX_ROOT}/agents/${agent}.md"
     done
 

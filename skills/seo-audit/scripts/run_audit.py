@@ -10,15 +10,21 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import ipaddress
 import json
+import math
+import os
 import re
 import socket
 import statistics
+import subprocess
+import sys
 import time
 from collections import Counter, deque
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from html import escape
 from pathlib import Path
 from typing import Any
 from urllib import robotparser
@@ -54,6 +60,16 @@ WEIGHTS = {
     "performance": 0.10,
     "images": 0.05,
     "ai_readiness": 0.05,
+}
+
+SCORE_LABELS = {
+    "technical": "Technical SEO",
+    "content": "Content Quality",
+    "onpage": "On-Page SEO",
+    "schema": "Schema / Structured Data",
+    "performance": "Performance",
+    "images": "Images",
+    "ai_readiness": "AI Search Readiness",
 }
 
 PRIORITY_ORDER = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
@@ -458,15 +474,304 @@ def try_fetch_exists(url: str, timeout: int) -> bool:
         return response.status_code < 400
 
 
+def _slugify(value: str, default: str = "section") -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
+    return (cleaned[:48] or default).strip("-")
+
+
+_OCR_ENGINE: Any | None = None
+_OCR_ERROR: str = ""
+
+
+def _get_ocr_engine() -> tuple[Any | None, str]:
+    global _OCR_ENGINE, _OCR_ERROR
+    if _OCR_ENGINE is False:
+        return None, _OCR_ERROR
+    if _OCR_ENGINE is not None:
+        return _OCR_ENGINE, ""
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+
+        _OCR_ENGINE = RapidOCR()
+        _OCR_ERROR = ""
+        return _OCR_ENGINE, ""
+    except Exception as exc:
+        _OCR_ENGINE = False
+        _OCR_ERROR = str(exc)
+        return None, _OCR_ERROR
+
+
+def _run_ocr_excerpt(image_path: Path) -> dict[str, Any]:
+    engine, reason = _get_ocr_engine()
+    if engine is None:
+        return {
+            "status": "not_available",
+            "reason": reason or "rapidocr_onnxruntime not installed",
+            "text": "",
+            "line_count": 0,
+            "avg_confidence": None,
+        }
+    try:
+        results, _elapsed = engine(str(image_path))
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "reason": str(exc),
+            "text": "",
+            "line_count": 0,
+            "avg_confidence": None,
+        }
+    if not results:
+        return {
+            "status": "ok",
+            "reason": "",
+            "text": "",
+            "line_count": 0,
+            "avg_confidence": None,
+        }
+
+    lines: list[str] = []
+    confs: list[float] = []
+    for item in results[:60]:
+        if not isinstance(item, (list, tuple)) or len(item) < 3:
+            continue
+        txt = str(item[1] or "").strip()
+        if txt:
+            lines.append(re.sub(r"\s+", " ", txt))
+        try:
+            confs.append(float(item[2]))
+        except Exception:
+            pass
+    excerpt = " ".join(lines).strip()
+    if len(excerpt) > 280:
+        excerpt = excerpt[:277].rstrip() + "..."
+    avg_conf = round(sum(confs) / len(confs), 3) if confs else None
+    return {
+        "status": "ok",
+        "reason": "",
+        "text": excerpt,
+        "line_count": len(lines),
+        "avg_confidence": avg_conf,
+    }
+
+
+def capture_section_intelligence(page: Any, sections_dir: Path, max_sections: int = 8) -> tuple[list[dict[str, Any]], list[str]]:
+    sections: list[dict[str, Any]] = []
+    screenshots: list[str] = []
+    sections_dir.mkdir(parents=True, exist_ok=True)
+
+    candidates = page.query_selector_all("main section, main article, section, article, [role='region'], header, footer")
+    seen_buckets: set[int] = set()
+
+    for handle in candidates:
+        if len(sections) >= max_sections:
+            break
+
+        try:
+            box = handle.bounding_box()
+        except Exception:
+            box = None
+        if not box:
+            continue
+
+        width = float(box.get("width") or 0.0)
+        height = float(box.get("height") or 0.0)
+        top = float(box.get("y") or 0.0)
+        if width < 480 or height < 160 or top < 0:
+            continue
+
+        bucket = int(top // 90)
+        if bucket in seen_buckets:
+            continue
+        seen_buckets.add(bucket)
+
+        try:
+            meta = handle.evaluate(
+                """(el) => {
+                    const headingNode = el.querySelector('h1, h2, h3, h4');
+                    const heading = (headingNode?.innerText || el.getAttribute('aria-label') || '').trim();
+                    const text = (el.innerText || '').replace(/\\s+/g, ' ').trim();
+                    const snippet = text.slice(0, 260);
+                    const wordCount = text ? text.split(/\\s+/).length : 0;
+                    const ctaCount = el.querySelectorAll("a[href*='signup'],a[href*='demo'],a[href*='contact'],a[href*='start'],button,.cta,[class*='cta']").length;
+                    const formCount = el.querySelectorAll('form,input,textarea,select').length;
+                    const linkCount = el.querySelectorAll('a[href]').length;
+                    const tag = (el.tagName || '').toLowerCase();
+                    const role = (el.getAttribute('role') || '').toLowerCase();
+                    const id = (el.id || '').toLowerCase();
+                    const classes = (typeof el.className === 'string' ? el.className : (el.className?.baseVal || '')).toLowerCase();
+                    const hasMedia = !!el.querySelector('img,video,picture,svg,canvas');
+                    return {
+                        heading,
+                        snippet,
+                        word_count: wordCount,
+                        cta_count: ctaCount,
+                        form_count: formCount,
+                        link_count: linkCount,
+                        tag,
+                        role,
+                        id,
+                        classes,
+                        has_media: hasMedia,
+                    };
+                }"""
+            )
+        except Exception:
+            continue
+
+        heading = re.sub(r"\s+", " ", str(meta.get("heading") or "")).strip()
+        notes: list[str] = []
+        capture_notes: list[str] = []
+
+        word_count = int(meta.get("word_count") or 0)
+        cta_count = int(meta.get("cta_count") or 0)
+        form_count = int(meta.get("form_count") or 0)
+        link_count = int(meta.get("link_count") or 0)
+        snippet = re.sub(r"\s+", " ", str(meta.get("snippet") or "")).strip()
+        tag = str(meta.get("tag") or "").lower()
+        role = str(meta.get("role") or "").lower()
+        identity_blob = " ".join(
+            [
+                heading,
+                str(meta.get("id") or ""),
+                str(meta.get("classes") or ""),
+                tag,
+                role,
+            ]
+        ).lower()
+
+        semantic_type = "content"
+        if top < 260 or "hero" in identity_blob:
+            semantic_type = "hero"
+        elif tag == "header" or role == "banner":
+            semantic_type = "header"
+        elif "nav" in identity_blob or role == "navigation":
+            semantic_type = "navigation"
+        elif form_count > 0:
+            semantic_type = "lead-capture"
+        elif cta_count > 0:
+            semantic_type = "cta-block"
+        elif tag == "footer" or role == "contentinfo" or "footer" in identity_blob:
+            semantic_type = "footer"
+        elif link_count >= 12:
+            semantic_type = "link-hub"
+
+        fallback_labels = {
+            "hero": "Hero Section",
+            "header": "Header Block",
+            "navigation": "Navigation Block",
+            "lead-capture": "Lead Capture Section",
+            "cta-block": "CTA Section",
+            "footer": "Footer Section",
+            "link-hub": "Link Hub Section",
+            "content": "Content Section",
+        }
+        label = heading or fallback_labels.get(semantic_type, f"Section {len(sections) + 1}")
+
+        if not heading:
+            notes.append("No explicit heading detected.")
+        if word_count < 35:
+            notes.append("Content depth is light in this section.")
+        if word_count >= 150:
+            notes.append("Dense copy block may need readability chunking.")
+        if cta_count == 0 and top < 1400:
+            notes.append("No clear CTA in upper-page section.")
+        if cta_count >= 2:
+            notes.append("Multiple CTA elements compete for attention.")
+        if form_count > 0:
+            notes.append("Contains form/capture elements.")
+        if link_count >= 10:
+            notes.append("High link density; review for focus.")
+        observation = " ".join(notes) if notes else "Section structure looks balanced."
+
+        if top < 260:
+            capture_notes.append("Above-the-fold framing and value proposition review.")
+        if semantic_type in ("hero", "header", "navigation"):
+            capture_notes.append("Primary orientation block that shapes first impression.")
+        if cta_count > 0:
+            capture_notes.append("Contains CTA elements for conversion-path evaluation.")
+        if form_count > 0:
+            capture_notes.append("Contains form controls for friction and trust review.")
+        if link_count >= 12:
+            capture_notes.append("High-link cluster selected for IA/focus signal review.")
+        if word_count >= 120:
+            capture_notes.append("Text-heavy block selected for readability and hierarchy checks.")
+        if bool(meta.get("has_media")):
+            capture_notes.append("Includes media/canvas assets that can hide OCR-only messaging.")
+        if "pricing" in identity_blob or "plan" in identity_blob:
+            capture_notes.append("Commercial intent area selected for clarity and offer framing.")
+        capture_reason = " ".join(capture_notes[:2]) or "Representative section chosen for structural and visual QA."
+
+        shot_path: str | None = None
+        ocr = {
+            "status": "not_run",
+            "reason": "",
+            "text": "",
+            "line_count": 0,
+            "avg_confidence": None,
+        }
+        shot_file = sections_dir / f"{len(sections) + 1:02d}-{_slugify(label)}.png"
+        try:
+            handle.screenshot(path=str(shot_file))
+            shot_path = str(shot_file)
+            screenshots.append(shot_path)
+            ocr = _run_ocr_excerpt(shot_file)
+        except Exception:
+            shot_path = None
+
+        if ocr.get("text") and word_count < 25:
+            notes.append("OCR found visual text despite sparse DOM text (possible canvas/image text).")
+            observation = " ".join(notes)
+
+        sections.append(
+            {
+                "label": label,
+                "snippet": snippet,
+                "observation": observation,
+                "top_px": round(top, 1),
+                "height_px": round(height, 1),
+                "word_count": word_count,
+                "cta_count": cta_count,
+                "form_count": form_count,
+                "link_count": link_count,
+                "semantic_type": semantic_type,
+                "capture_reason": capture_reason,
+                "screenshot": shot_path,
+                "ocr_status": ocr.get("status"),
+                "ocr_reason": ocr.get("reason"),
+                "ocr_excerpt": ocr.get("text", ""),
+                "ocr_line_count": int(ocr.get("line_count") or 0),
+                "ocr_avg_confidence": ocr.get("avg_confidence"),
+            }
+        )
+
+    return sections, screenshots
+
+
 def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:
     result: dict[str, Any] = {
         "status": "skipped",
         "reason": "",
         "screenshots": [],
+        "viewport_screenshots": [],
+        "section_screenshots": [],
+        "sections": [],
+        "ocr_status": "not_run",
+        "ocr_reason": "",
+        "ocr_sections_with_text": 0,
+        "ocr_sections_total": 0,
+        "ocr_avg_confidence": None,
         "h1_visible_above_fold": None,
         "cta_visible_above_fold": None,
         "viewport_meta_present": None,
         "horizontal_scroll_mobile": None,
+        "mobile_touch_targets_small": None,
+        "mobile_touch_targets_total": None,
+        "mobile_min_font_px": None,
+        "mobile_text_readability_ok": None,
+        "mobile_nav_accessible": None,
+        "desktop_overlap_issues": None,
+        "desktop_overflow_issues": None,
     }
 
     if mode == "off":
@@ -495,8 +800,32 @@ def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:
             desktop_page.wait_for_timeout(800)
 
             desktop_file = shots_dir / "homepage-desktop.png"
-            desktop_page.screenshot(path=str(desktop_file), full_page=True)
+            desktop_page.screenshot(path=str(desktop_file), full_page=False)
             result["screenshots"].append(str(desktop_file))
+            result["viewport_screenshots"].append(
+                {
+                    "label": "desktop",
+                    "path": str(desktop_file),
+                    "viewport": {"width": 1920, "height": 1080},
+                }
+            )
+
+            section_data, section_shots = capture_section_intelligence(desktop_page, shots_dir / "sections", max_sections=8)
+            result["sections"] = section_data
+            result["section_screenshots"] = section_shots
+            result["ocr_sections_total"] = len(section_data)
+            ocr_ok = [s for s in section_data if s.get("ocr_status") == "ok" and s.get("ocr_excerpt")]
+            result["ocr_sections_with_text"] = len(ocr_ok)
+            ocr_conf = [float(s["ocr_avg_confidence"]) for s in section_data if isinstance(s.get("ocr_avg_confidence"), (int, float))]
+            result["ocr_avg_confidence"] = round(sum(ocr_conf) / len(ocr_conf), 3) if ocr_conf else None
+            ocr_fail = [s for s in section_data if s.get("ocr_status") in ("not_available", "failed")]
+            if ocr_fail:
+                result["ocr_status"] = "partial"
+                reasons = [str(s.get("ocr_reason") or "").strip() for s in ocr_fail if s.get("ocr_reason")]
+                result["ocr_reason"] = reasons[0] if reasons else ""
+            else:
+                result["ocr_status"] = "ok"
+                result["ocr_reason"] = ""
 
             h1 = desktop_page.query_selector("h1")
             if h1:
@@ -514,7 +843,60 @@ def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:
             else:
                 result["cta_visible_above_fold"] = False
 
+            desktop_diagnostics = desktop_page.evaluate(
+                """() => {
+                    const nodes = Array.from(document.querySelectorAll('body *')).slice(0, 1400);
+                    const rects = [];
+                    let overflow = 0;
+
+                    for (const el of nodes) {
+                        const style = getComputedStyle(el);
+                        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || 1) === 0) continue;
+                        const r = el.getBoundingClientRect();
+                        if (r.width < 20 || r.height < 20) continue;
+                        if (r.right > window.innerWidth + 2) overflow += 1;
+                        rects.push({x: r.left, y: r.top, w: r.width, h: r.height});
+                        if (rects.length >= 260) break;
+                    }
+
+                    let overlap = 0;
+                    for (let i = 0; i < rects.length && i < 200; i++) {
+                        const a = rects[i];
+                        for (let j = i + 1; j < Math.min(rects.length, i + 26); j++) {
+                            const b = rects[j];
+                            const xOverlap = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+                            const yOverlap = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+                            if (xOverlap > 34 && yOverlap > 18) {
+                                overlap += 1;
+                                if (overlap > 80) break;
+                            }
+                        }
+                        if (overlap > 80) break;
+                    }
+                    return {overlap_issues: overlap, overflow_issues: overflow};
+                }"""
+            )
+            result["desktop_overlap_issues"] = int(desktop_diagnostics.get("overlap_issues") or 0)
+            result["desktop_overflow_issues"] = int(desktop_diagnostics.get("overflow_issues") or 0)
+
             desktop_context.close()
+
+            for label, width, height in (("laptop", 1366, 768), ("tablet", 768, 1024)):
+                context = browser.new_context(viewport={"width": width, "height": height})
+                page = context.new_page()
+                page.goto(url, wait_until="networkidle", timeout=30000)
+                page.wait_for_timeout(500)
+                file_path = shots_dir / f"homepage-{label}.png"
+                page.screenshot(path=str(file_path), full_page=False)
+                result["screenshots"].append(str(file_path))
+                result["viewport_screenshots"].append(
+                    {
+                        "label": label,
+                        "path": str(file_path),
+                        "viewport": {"width": width, "height": height},
+                    }
+                )
+                context.close()
 
             mobile_context = browser.new_context(viewport={"width": 375, "height": 812})
             mobile_page = mobile_context.new_page()
@@ -522,8 +904,15 @@ def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:
             mobile_page.wait_for_timeout(500)
 
             mobile_file = shots_dir / "homepage-mobile.png"
-            mobile_page.screenshot(path=str(mobile_file), full_page=True)
+            mobile_page.screenshot(path=str(mobile_file), full_page=False)
             result["screenshots"].append(str(mobile_file))
+            result["viewport_screenshots"].append(
+                {
+                    "label": "mobile",
+                    "path": str(mobile_file),
+                    "viewport": {"width": 375, "height": 812},
+                }
+            )
 
             viewport_meta = mobile_page.query_selector('meta[name="viewport"]')
             result["viewport_meta_present"] = viewport_meta is not None
@@ -531,6 +920,49 @@ def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:
             scroll_width = int(mobile_page.evaluate("document.documentElement.scrollWidth"))
             viewport_width = int(mobile_page.evaluate("window.innerWidth"))
             result["horizontal_scroll_mobile"] = scroll_width > viewport_width
+
+            mobile_diagnostics = mobile_page.evaluate(
+                """() => {
+                    const candidates = Array.from(document.querySelectorAll("a,button,input,select,textarea,[role='button'],[onclick]")).slice(0, 900);
+                    let touchTotal = 0;
+                    let touchSmall = 0;
+                    for (const el of candidates) {
+                        const style = getComputedStyle(el);
+                        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || 1) === 0) continue;
+                        const r = el.getBoundingClientRect();
+                        if (r.width <= 0 || r.height <= 0) continue;
+                        if (r.bottom < 0 || r.top > window.innerHeight * 6) continue;
+                        touchTotal += 1;
+                        if (r.width < 48 || r.height < 48) touchSmall += 1;
+                    }
+
+                    const textNodes = Array.from(document.querySelectorAll("p,li,a,button,span,label,h1,h2,h3,h4,h5,h6")).slice(0, 1200);
+                    let minFont = null;
+                    for (const el of textNodes) {
+                        const style = getComputedStyle(el);
+                        if (style.display === 'none' || style.visibility === 'hidden') continue;
+                        const fs = parseFloat(style.fontSize || "0");
+                        if (!Number.isFinite(fs) || fs <= 0) continue;
+                        if (minFont === null || fs < minFont) minFont = fs;
+                    }
+
+                    const nav = document.querySelector("nav,[role='navigation'],button[aria-label*='menu' i],button[aria-controls*='menu' i],.hamburger,.menu-toggle");
+                    return {
+                        touch_targets_total: touchTotal,
+                        touch_targets_small: touchSmall,
+                        min_font_px: minFont,
+                        mobile_nav_accessible: !!nav,
+                    };
+                }"""
+            )
+            result["mobile_touch_targets_total"] = int(mobile_diagnostics.get("touch_targets_total") or 0)
+            result["mobile_touch_targets_small"] = int(mobile_diagnostics.get("touch_targets_small") or 0)
+            min_font = mobile_diagnostics.get("min_font_px")
+            result["mobile_min_font_px"] = round(float(min_font), 1) if isinstance(min_font, (int, float)) else None
+            result["mobile_text_readability_ok"] = (
+                (result["mobile_min_font_px"] is not None and result["mobile_min_font_px"] >= 16.0)
+            )
+            result["mobile_nav_accessible"] = bool(mobile_diagnostics.get("mobile_nav_accessible"))
 
             mobile_context.close()
             browser.close()
@@ -541,6 +973,272 @@ def run_visual_checks(url: str, output_dir: Path, mode: str) -> dict[str, Any]:
         result["status"] = "failed"
         result["reason"] = str(exc)
         return result
+
+
+def _tail_lines(text: str, limit: int = 20) -> str:
+    lines = [line for line in (text or "").splitlines() if line.strip()]
+    if not lines:
+        return ""
+    return "\n".join(lines[-limit:])
+
+
+def _safe_read_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _coerce_metric_value(value: Any) -> Any:
+    if isinstance(value, float):
+        return round(value, 2)
+    if isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, list):
+        return len(value)
+    if isinstance(value, dict):
+        return len(value)
+    return str(value)
+
+
+def _extract_summary_metrics(summary: dict[str, Any] | None) -> dict[str, Any]:
+    if not summary:
+        return {}
+    metrics: dict[str, Any] = {}
+    for key in (
+        "health_score",
+        "overall_score",
+        "score",
+        "health",
+        "grade",
+        "status",
+        "issues_count",
+        "total_issues",
+        "priority_counts",
+        "visual_status",
+    ):
+        if key in summary:
+            metrics[key] = _coerce_metric_value(summary[key])
+    if "issues" in summary and isinstance(summary["issues"], list):
+        metrics["issues"] = len(summary["issues"])
+    if "scores" in summary and isinstance(summary["scores"], dict):
+        measured = [float(v) for v in summary["scores"].values() if isinstance(v, (int, float))]
+        if measured:
+            metrics["avg_category_score"] = round(sum(measured) / len(measured), 1)
+    return metrics
+
+
+def _build_orchestration_tracks(
+    target_url: str,
+    output_dir: Path,
+    timeout: int,
+    visual_mode: str,
+) -> list[dict[str, Any]]:
+    skills_root = Path(__file__).resolve().parents[2]
+    tracks_root = output_dir / "tracks"
+    tracks_root.mkdir(parents=True, exist_ok=True)
+
+    mobile_mode = "on" if visual_mode == "on" else ("off" if visual_mode == "off" else "auto")
+
+    return [
+        {
+            "name": "technical",
+            "output_dir": tracks_root / "technical",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-technical" / "scripts" / "run_technical_audit.py"),
+                target_url,
+                "--timeout",
+                str(timeout),
+                "--mobile-check",
+                mobile_mode,
+                "--output-dir",
+                str(tracks_root / "technical"),
+            ],
+        },
+        {
+            "name": "content",
+            "output_dir": tracks_root / "content",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-content" / "scripts" / "run_content_audit.py"),
+                target_url,
+                "--timeout",
+                str(timeout),
+                "--output-dir",
+                str(tracks_root / "content"),
+            ],
+        },
+        {
+            "name": "schema",
+            "output_dir": tracks_root / "schema",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-schema" / "scripts" / "run_schema.py"),
+                "analyze",
+                "--url",
+                target_url,
+                "--timeout",
+                str(timeout),
+                "--output-dir",
+                str(tracks_root / "schema"),
+            ],
+        },
+        {
+            "name": "sitemap",
+            "output_dir": tracks_root / "sitemap",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-sitemap" / "scripts" / "run_sitemap.py"),
+                "analyze",
+                "--sitemap-url",
+                urljoin(target_url, "/sitemap.xml"),
+                "--timeout",
+                str(timeout),
+                "--output-dir",
+                str(tracks_root / "sitemap"),
+            ],
+        },
+        {
+            "name": "images",
+            "output_dir": tracks_root / "images",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-images" / "scripts" / "run_image_audit.py"),
+                "--url",
+                target_url,
+                "--timeout",
+                str(timeout),
+                "--output-dir",
+                str(tracks_root / "images"),
+            ],
+        },
+        {
+            "name": "page",
+            "output_dir": tracks_root / "page",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-page" / "scripts" / "run_page_audit.py"),
+                target_url,
+                "--timeout",
+                str(timeout),
+                "--visual",
+                visual_mode,
+                "--output-dir",
+                str(tracks_root / "page"),
+            ],
+        },
+        {
+            "name": "geo",
+            "output_dir": tracks_root / "geo",
+            "cmd": [
+                sys.executable,
+                str(skills_root / "seo-geo" / "scripts" / "run_geo_analysis.py"),
+                "--url",
+                target_url,
+                "--timeout",
+                str(timeout),
+                "--output-dir",
+                str(tracks_root / "geo"),
+            ],
+        },
+    ]
+
+
+def run_specialist_orchestration(
+    target_url: str,
+    output_dir: Path,
+    timeout: int,
+    visual_mode: str,
+) -> dict[str, Any]:
+    started = datetime.now(UTC).isoformat()
+    track_specs = _build_orchestration_tracks(target_url, output_dir, timeout, visual_mode)
+
+    def run_track(track: dict[str, Any]) -> dict[str, Any]:
+        name = str(track["name"])
+        out_dir = Path(track["output_dir"])
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cmd = [str(x) for x in track["cmd"]]
+        start_ts = time.perf_counter()
+        status = "failed"
+        rc = -1
+        stdout_text = ""
+        stderr_text = ""
+        reason = ""
+
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(Path(__file__).resolve().parents[3]),
+                capture_output=True,
+                text=True,
+                timeout=max(180, timeout * 20),
+            )
+            rc = int(proc.returncode)
+            stdout_text = proc.stdout or ""
+            stderr_text = proc.stderr or ""
+            status = "ok" if rc == 0 else "failed"
+        except subprocess.TimeoutExpired:
+            status = "failed"
+            reason = "timeout"
+        except Exception as exc:
+            status = "failed"
+            reason = str(exc)
+
+        duration = round(time.perf_counter() - start_ts, 2)
+        summary_path = out_dir / "SUMMARY.json"
+        summary_data = _safe_read_json(summary_path)
+        report_files = sorted(p.name for p in out_dir.glob("*.md"))
+        primary_report = ""
+        for candidate in report_files:
+            if "REPORT" in candidate.upper():
+                primary_report = candidate
+                break
+        if not primary_report and report_files:
+            primary_report = report_files[0]
+
+        return {
+            "name": name,
+            "status": status,
+            "exit_code": rc,
+            "duration_sec": duration,
+            "output_dir": str(out_dir),
+            "summary_path": str(summary_path) if summary_path.exists() else "",
+            "summary_metrics": _extract_summary_metrics(summary_data),
+            "report_files": report_files,
+            "primary_report": primary_report,
+            "reason": reason,
+            "stdout_tail": _tail_lines(stdout_text),
+            "stderr_tail": _tail_lines(stderr_text),
+        }
+
+    indexed: dict[str, int] = {str(item["name"]): idx for idx, item in enumerate(track_specs)}
+    results: list[dict[str, Any]] = []
+    max_workers = min(7, len(track_specs))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [pool.submit(run_track, item) for item in track_specs]
+        for fut in concurrent.futures.as_completed(futures):
+            results.append(fut.result())
+
+    results.sort(key=lambda item: indexed.get(str(item["name"]), 999))
+    success_count = sum(1 for item in results if item["status"] == "ok")
+    completed = datetime.now(UTC).isoformat()
+
+    orchestration = {
+        "enabled": True,
+        "started_at": started,
+        "completed_at": completed,
+        "total_tracks": len(results),
+        "success_count": success_count,
+        "failed_tracks": [item["name"] for item in results if item["status"] != "ok"],
+        "tracks": results,
+        "summary_file": str(output_dir / "ORCHESTRATION-SUMMARY.json"),
+    }
+    summary_path = output_dir / "ORCHESTRATION-SUMMARY.json"
+    summary_path.write_text(json.dumps(orchestration, indent=2), encoding="utf-8")
+    return orchestration
 
 
 def percentile(values: list[float], p: float) -> float | None:
@@ -629,6 +1327,162 @@ def fetch_security_headers(target_url: str, timeout: int) -> dict[str, Any]:
     }
 
 
+def _extract_metric_percentile(metrics: dict[str, Any], keys: list[str]) -> float | None:
+    for key in keys:
+        node = metrics.get(key)
+        if isinstance(node, dict) and node.get("percentile") is not None:
+            try:
+                return float(node["percentile"])
+            except Exception:
+                continue
+    return None
+
+
+def _normalize_cls(value: float | None) -> float | None:
+    if value is None:
+        return None
+    if value > 1.0:
+        return value / 100.0
+    return value
+
+
+def _score_threshold(value: float | None, good: float, poor: float) -> float | None:
+    if value is None:
+        return None
+    if value <= good:
+        return 100.0
+    if value >= poor:
+        return 30.0
+    return round(100.0 - ((value - good) / (poor - good)) * 70.0, 1)
+
+
+def _fetch_pagespeed_payload(target_url: str, strategy: str, timeout: int, api_key: str) -> dict[str, Any]:
+    endpoint = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
+    params: dict[str, Any] = {
+        "url": target_url,
+        "strategy": strategy,
+        "category": ["performance", "seo", "best-practices", "accessibility"],
+        "locale": "en_US",
+    }
+    if api_key:
+        params["key"] = api_key
+    try:
+        resp = requests.get(endpoint, params=params, timeout=max(30, timeout * 2))
+    except requests.exceptions.RequestException as exc:
+        return {"status": "error", "reason": str(exc), "http_status": None}
+    if resp.status_code != 200:
+        reason = f"HTTP {resp.status_code}"
+        try:
+            payload = resp.json()
+            if isinstance(payload, dict):
+                err = payload.get("error", {})
+                if isinstance(err, dict) and err.get("message"):
+                    reason = f"{reason}: {err['message']}"
+        except Exception:
+            pass
+        return {"status": "error", "reason": reason, "http_status": resp.status_code}
+    try:
+        return {"status": "ok", "payload": resp.json(), "http_status": 200}
+    except Exception as exc:
+        return {"status": "error", "reason": f"Invalid JSON: {exc}", "http_status": 200}
+
+
+def run_cwv_assessment(target_url: str, timeout: int, source: str, pagespeed_key: str) -> dict[str, Any]:
+    if source == "off":
+        return {"status": "disabled", "source": "off", "reason": "CWV API checks disabled"}
+    if source not in ("auto", "pagespeed"):
+        return {"status": "disabled", "source": source, "reason": "Unsupported CWV source"}
+
+    mobile = _fetch_pagespeed_payload(target_url, "mobile", timeout, pagespeed_key)
+    desktop = _fetch_pagespeed_payload(target_url, "desktop", timeout, pagespeed_key)
+    if mobile.get("status") != "ok" and desktop.get("status") != "ok":
+        reason = mobile.get("reason") or desktop.get("reason") or "PageSpeed request failed"
+        return {
+            "status": "unavailable",
+            "source": "pagespeed",
+            "reason": reason,
+            "mobile": mobile,
+            "desktop": desktop,
+        }
+
+    def parse_payload(track: dict[str, Any]) -> dict[str, Any]:
+        if track.get("status") != "ok":
+            return {}
+        payload = track.get("payload") or {}
+        lighthouse = payload.get("lighthouseResult") or {}
+        categories = lighthouse.get("categories") or {}
+        audits = lighthouse.get("audits") or {}
+
+        perf_score = categories.get("performance", {}).get("score")
+        perf = round(float(perf_score) * 100.0, 1) if isinstance(perf_score, (int, float)) else None
+        lab_lcp = audits.get("largest-contentful-paint", {}).get("numericValue")
+        lab_inp = audits.get("interaction-to-next-paint", {}).get("numericValue")
+        lab_cls = audits.get("cumulative-layout-shift", {}).get("numericValue")
+        lab_lcp = round(float(lab_lcp), 1) if isinstance(lab_lcp, (int, float)) else None
+        lab_inp = round(float(lab_inp), 1) if isinstance(lab_inp, (int, float)) else None
+        lab_cls = round(float(lab_cls), 3) if isinstance(lab_cls, (int, float)) else None
+
+        load_exp = payload.get("loadingExperience", {}).get("metrics", {}) or {}
+        origin_exp = payload.get("originLoadingExperience", {}).get("metrics", {}) or {}
+        field_lcp = _extract_metric_percentile(load_exp, ["LARGEST_CONTENTFUL_PAINT_MS"])
+        field_inp = _extract_metric_percentile(load_exp, ["INTERACTION_TO_NEXT_PAINT", "INTERACTION_TO_NEXT_PAINT_MS"])
+        field_cls = _extract_metric_percentile(load_exp, ["CUMULATIVE_LAYOUT_SHIFT_SCORE"])
+        origin_lcp = _extract_metric_percentile(origin_exp, ["LARGEST_CONTENTFUL_PAINT_MS"])
+        origin_inp = _extract_metric_percentile(origin_exp, ["INTERACTION_TO_NEXT_PAINT", "INTERACTION_TO_NEXT_PAINT_MS"])
+        origin_cls = _extract_metric_percentile(origin_exp, ["CUMULATIVE_LAYOUT_SHIFT_SCORE"])
+
+        field_lcp = field_lcp if field_lcp is not None else origin_lcp
+        field_inp = field_inp if field_inp is not None else origin_inp
+        field_cls = _normalize_cls(field_cls if field_cls is not None else origin_cls)
+
+        return {
+            "lighthouse_perf_score": perf,
+            "lab_lcp_ms": lab_lcp,
+            "lab_inp_ms": lab_inp,
+            "lab_cls": lab_cls,
+            "field_lcp_ms": round(field_lcp, 1) if field_lcp is not None else None,
+            "field_inp_ms": round(field_inp, 1) if field_inp is not None else None,
+            "field_cls": round(field_cls, 3) if field_cls is not None else None,
+            "analysis_url": payload.get("analysisUTCTimestamp"),
+            "id": payload.get("id"),
+        }
+
+    mobile_data = parse_payload(mobile)
+    desktop_data = parse_payload(desktop)
+
+    lcp_score = _score_threshold(mobile_data.get("field_lcp_ms"), 2500.0, 4000.0)
+    inp_score = _score_threshold(mobile_data.get("field_inp_ms"), 200.0, 500.0)
+    cls_score = _score_threshold(mobile_data.get("field_cls"), 0.10, 0.25)
+    field_scores = [x for x in (lcp_score, inp_score, cls_score) if x is not None]
+    field_score = round(sum(field_scores) / len(field_scores), 1) if field_scores else None
+
+    lab_candidates = [x for x in (mobile_data.get("lighthouse_perf_score"), desktop_data.get("lighthouse_perf_score")) if isinstance(x, (int, float))]
+    lab_score = round(sum(float(x) for x in lab_candidates) / len(lab_candidates), 1) if lab_candidates else None
+
+    composite: float | None = None
+    if lab_score is not None and field_score is not None:
+        composite = round(lab_score * 0.6 + field_score * 0.4, 1)
+    elif lab_score is not None:
+        composite = lab_score
+    elif field_score is not None:
+        composite = field_score
+
+    return {
+        "status": "ok",
+        "source": "pagespeed",
+        "reason": "",
+        "composite_score": composite,
+        "lab_score": lab_score,
+        "field_score": field_score,
+        "mobile": mobile_data,
+        "desktop": desktop_data,
+        "raw_http": {
+            "mobile_status": mobile.get("http_status"),
+            "desktop_status": desktop.get("http_status"),
+        },
+    }
+
+
 def make_issue(
     *,
     priority: str,
@@ -659,6 +1513,7 @@ def compute_scores(
     start_url: str,
     crawl_info: dict[str, Any],
     timeout: int,
+    cwv: dict[str, Any] | None = None,
 ) -> tuple[dict[str, float | None], dict[str, Any], list[dict[str, Any]]]:
     pages_ok = [p for p in pages if p.fetch_error is None]
     pages_html = [p for p in pages_ok if p.is_html]
@@ -746,20 +1601,26 @@ def compute_scores(
 
         schema = clamp(50.0 + 50.0 * (schema_pages / total), 0.0, 100.0)
 
-    if median_response is None:
-        performance = None
-    elif median_response <= 500:
-        performance = 96.0
-    elif median_response <= 900:
-        performance = 84.0
-    elif median_response <= 1500:
-        performance = 70.0
-    elif median_response <= 2500:
-        performance = 52.0
+    performance_source = "proxy"
+    performance = None
+    if cwv and cwv.get("status") == "ok" and isinstance(cwv.get("composite_score"), (int, float)):
+        performance = float(cwv["composite_score"])
+        performance_source = "pagespeed"
     else:
-        performance = 30.0
-    if performance is not None and p90_response is not None and p90_response > 2500:
-        performance = clamp(performance - 8.0, 0.0, 100.0)
+        if median_response is None:
+            performance = None
+        elif median_response <= 500:
+            performance = 96.0
+        elif median_response <= 900:
+            performance = 84.0
+        elif median_response <= 1500:
+            performance = 70.0
+        elif median_response <= 2500:
+            performance = 52.0
+        else:
+            performance = 30.0
+        if performance is not None and p90_response is not None and p90_response > 2500:
+            performance = clamp(performance - 8.0, 0.0, 100.0)
 
     if html_count > 0:
         if total_images == 0:
@@ -951,6 +1812,67 @@ def compute_scores(
                 expected_lift="Medium",
             )
         )
+    if cwv and cwv.get("status") == "ok":
+        mobile_cwv = cwv.get("mobile", {}) or {}
+        lcp = mobile_cwv.get("field_lcp_ms")
+        inp = mobile_cwv.get("field_inp_ms")
+        cls = mobile_cwv.get("field_cls")
+        if isinstance(lcp, (int, float)) and lcp > 4000:
+            issues.append(
+                make_issue(
+                    priority="High",
+                    category="Performance",
+                    title="Poor field LCP (mobile)",
+                    detail=f"Field LCP p75 is {round(float(lcp), 1)}ms (target <= 2500ms).",
+                    impact="Slow loading hurts rankings, user retention, and conversion rates.",
+                    recommendation="Optimize hero assets, critical CSS, TTFB, and render-blocking scripts.",
+                    evidence=[start_url],
+                    effort="Medium",
+                    expected_lift="High",
+                )
+            )
+        if isinstance(inp, (int, float)) and inp > 500:
+            issues.append(
+                make_issue(
+                    priority="High",
+                    category="Performance",
+                    title="Poor field INP (mobile)",
+                    detail=f"Field INP p75 is {round(float(inp), 1)}ms (target <= 200ms).",
+                    impact="Input delay degrades UX and can suppress performance-led ranking gains.",
+                    recommendation="Reduce main-thread blocking JS and optimize event handlers.",
+                    evidence=[start_url],
+                    effort="Medium",
+                    expected_lift="High",
+                )
+            )
+        if isinstance(cls, (int, float)) and cls > 0.25:
+            issues.append(
+                make_issue(
+                    priority="High",
+                    category="Performance",
+                    title="Poor field CLS (mobile)",
+                    detail=f"Field CLS p75 is {round(float(cls), 3)} (target <= 0.10).",
+                    impact="Layout instability damages perceived quality and engagement.",
+                    recommendation="Reserve dimensions for media/embeds and stabilize dynamic UI insertion.",
+                    evidence=[start_url],
+                    effort="Medium",
+                    expected_lift="Medium",
+                )
+            )
+    elif cwv and cwv.get("status") == "unavailable":
+        issues.append(
+            make_issue(
+                priority="Low",
+                category="Performance",
+                title="Live CWV API data unavailable",
+                detail=f"PageSpeed/CrUX fetch failed: {cwv.get('reason', 'unknown error')}.",
+                impact="Performance score falls back to response-time proxy and may miss real-user regressions.",
+                recommendation="Provide PAGESPEED_API_KEY and rerun for full lab+field CWV coverage.",
+                evidence=[start_url],
+                effort="Low",
+                expected_lift="Low",
+            )
+        )
     issues.sort(key=lambda issue: (PRIORITY_ORDER.get(issue["priority"], 99), issue["title"]))
 
     stats = {
@@ -982,6 +1904,8 @@ def compute_scores(
         "long_redirects": long_redirects,
         "median_response_ms": median_response,
         "p90_response_ms": p90_response,
+        "performance_source": performance_source,
+        "cwv": cwv or {"status": "disabled", "source": "off", "reason": "not requested"},
         "word_count_p25": word_count_p25,
         "word_count_median": word_count_median,
         "word_count_p75": word_count_p75,
@@ -1074,6 +1998,1572 @@ def markdown_issue_list(items: list[dict[str, Any]], with_details: bool = False)
     return "\n".join(lines)
 
 
+def _fmt_number(value: Any, digits: int = 1) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        rounded = round(value, digits)
+        if digits == 0:
+            return str(int(rounded))
+        return f"{rounded:.{digits}f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def _bool_label(value: Any) -> str:
+    if value is True:
+        return "Yes"
+    if value is False:
+        return "No"
+    return "n/a"
+
+
+def _priority_badge(priority: str) -> str:
+    classes = {
+        "Critical": "priority-critical",
+        "High": "priority-high",
+        "Medium": "priority-medium",
+        "Low": "priority-low",
+    }
+    cls = classes.get(priority, "priority-low")
+    return f"<span class='priority {cls}'>{escape(priority)}</span>"
+
+
+def _score_class(value: float | None) -> str:
+    if value is None:
+        return "score-na"
+    if value >= 90:
+        return "score-excellent"
+    if value >= 80:
+        return "score-strong"
+    if value >= 70:
+        return "score-good"
+    if value >= 60:
+        return "score-needs"
+    return "score-risk"
+
+
+def _score_fill_color(value: float | None) -> str:
+    if value is None:
+        return "#b8c7d9"
+    if value >= 90:
+        return "#0f9d58"
+    if value >= 80:
+        return "#0b74de"
+    if value >= 70:
+        return "#2f86d4"
+    if value >= 60:
+        return "#d5881f"
+    return "#b42318"
+
+
+def _viewport_caption(path: str) -> str:
+    name = Path(path).name.lower()
+    if "desktop" in name:
+        return "Desktop viewport: baseline hierarchy, hero clarity, and primary CTA placement."
+    if "laptop" in name:
+        return "Laptop viewport: layout compression and menu/CTA behavior at common breakpoint."
+    if "tablet" in name:
+        return "Tablet viewport: stacking order, spacing rhythm, and touch-friendly navigation."
+    if "mobile" in name:
+        return "Mobile viewport: fold content, tap target sizing, and text readability."
+    return "Viewport capture for layout and rendering verification."
+
+
+def _status_color(score: float) -> str:
+    if score >= 80:
+        return "#22c55e"
+    if score >= 60:
+        return "#f59e0b"
+    return "#ef4444"
+
+
+def _projected_score_series(current_score: float, issues: list[dict[str, Any]]) -> list[float]:
+    counts = Counter(str(item.get("priority") or "Low").title() for item in issues)
+    c = int(counts.get("Critical", 0))
+    h = int(counts.get("High", 0))
+    m = int(counts.get("Medium", 0))
+    l = int(counts.get("Low", 0))
+
+    after_critical = clamp(current_score + min(10.0, c * 2.6), 0.0, 100.0)
+    after_high = clamp(after_critical + min(12.0, h * 1.8), 0.0, 100.0)
+    after_medium = clamp(after_high + min(8.0, m * 1.2), 0.0, 100.0)
+    full = clamp(after_medium + min(5.0, l * 0.5), 0.0, 100.0)
+    return [round(current_score, 1), round(after_critical, 1), round(after_high, 1), round(after_medium, 1), round(full, 1)]
+
+
+def _estimate_eeat_dimensions(
+    scores: dict[str, float | None],
+    issues: list[dict[str, Any]],
+) -> dict[str, float]:
+    content = float(scores.get("content") or 0.0)
+    technical = float(scores.get("technical") or 0.0)
+    onpage = float(scores.get("onpage") or 0.0)
+    ai = float(scores.get("ai_readiness") or 0.0)
+
+    issue_text = " ".join(
+        f"{str(item.get('title') or '')} {str(item.get('detail') or '')} {str(item.get('recommendation') or '')}".lower()
+        for item in issues
+    )
+    author_penalty = 12.0 if ("author" in issue_text or "expert" in issue_text) else 0.0
+    source_penalty = 10.0 if ("citation" in issue_text or "source" in issue_text or "unsourced" in issue_text) else 0.0
+    trust_penalty = 8.0 * sum(1 for i in issues if str(i.get("priority", "")).lower() == "critical")
+
+    experience = clamp((content * 0.42) + (ai * 0.33) + (onpage * 0.25) - author_penalty, 0.0, 100.0)
+    expertise = clamp((content * 0.70) + (ai * 0.30) - (author_penalty * 0.6), 0.0, 100.0)
+    authority = clamp((content * 0.45) + (onpage * 0.30) + (technical * 0.25) - source_penalty, 0.0, 100.0)
+    trust = clamp((technical * 0.62) + (content * 0.38) - trust_penalty, 0.0, 100.0)
+
+    return {
+        "Experience": round(experience, 1),
+        "Expertise": round(expertise, 1),
+        "Authoritativeness": round(authority, 1),
+        "Trustworthiness": round(trust, 1),
+    }
+
+
+def _to_rel_path(path: Path, root: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except Exception:
+        return str(path).replace("\\", "/")
+
+
+def generate_reference_charts(
+    output_dir: Path,
+    target_url: str,
+    total_score: float,
+    scores: dict[str, float | None],
+    stats: dict[str, Any],
+    issues: list[dict[str, Any]],
+) -> dict[str, Any]:
+    charts_dir = output_dir / "charts"
+    charts_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Wedge
+    except Exception as exc:
+        return {
+            "enabled": False,
+            "reason": f"matplotlib unavailable: {exc}",
+            "figures": [],
+        }
+
+    def style_axes(ax: Any) -> None:
+        ax.set_facecolor("#f3f4f6")
+        ax.grid(color="#c5c8cf", alpha=0.35, linewidth=1)
+        for spine in ax.spines.values():
+            spine.set_color("#374151")
+            spine.set_linewidth(1.0)
+        ax.tick_params(colors="#111827")
+
+    figures: list[dict[str, str]] = []
+
+    # Figure 1: Health gauge
+    fig, ax = plt.subplots(figsize=(6.2, 5.0), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    ax.set_facecolor("#f3f4f6")
+    score_color = _status_color(total_score)
+    ax.add_patch(Wedge((0, 0), 1.0, 0, 180, width=0.30, facecolor="#d1d5db", edgecolor="none"))
+    sweep = 180.0 * clamp(total_score, 0.0, 100.0) / 100.0
+    ax.add_patch(Wedge((0, 0), 1.0, 180.0 - sweep, 180.0, width=0.30, facecolor=score_color, edgecolor="none"))
+    ax.text(0, 1.15, "SEO Health Score", ha="center", va="bottom", fontsize=20, weight="bold", color="#1a1d37")
+    ax.text(0, 0.24, f"{int(round(total_score))}", ha="center", va="center", fontsize=50, weight="bold", color="#1a1d37")
+    ax.text(0, 0.07, "out of 100", ha="center", va="center", fontsize=20, color="#6b7280")
+    ax.set_xlim(-1.2, 1.2)
+    ax.set_ylim(-0.08, 1.3)
+    ax.axis("off")
+    chart1 = charts_dir / "figure-01-health-gauge.png"
+    fig.savefig(chart1, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart1),
+            "title": "SEO Health Score",
+            "caption": f"Figure 1: Overall SEO Health Score - {int(round(total_score))}/100",
+        }
+    )
+
+    # Figure 2: Category breakdown
+    cat_keys = ("technical", "content", "onpage", "schema", "performance", "images", "ai_readiness")
+    cat_labels = [
+        "Technical SEO",
+        "Content Quality & E-E-A-T",
+        "On-Page SEO",
+        "Schema / Structured Data",
+        "Performance (CWV)",
+        "Images & Media",
+        "AI Search Readiness",
+    ]
+    cat_values = [float(scores.get(k) or 0.0) for k in cat_keys]
+    cat_weights = [int(round(WEIGHTS[k] * 100.0)) for k in cat_keys]
+    cat_colors = [_status_color(v) for v in cat_values]
+
+    fig, ax = plt.subplots(figsize=(11, 5.8), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    style_axes(ax)
+    y = list(range(len(cat_labels)))
+    ax.barh(y, cat_values, color=cat_colors, edgecolor="#f3f4f6", height=0.62)
+    ax.set_yticks(y)
+    ax.set_yticklabels(cat_labels, fontsize=13)
+    ax.set_xlim(0, 105)
+    ax.set_xlabel("Score", fontsize=14, color="#4b5563")
+    ax.set_title("SEO Audit - Category Breakdown", fontsize=20, weight="bold", color="#1a1d37", pad=16)
+    ax.axvline(60, color="#f59e0b", linestyle="--", linewidth=1.6, alpha=0.45)
+    ax.axvline(80, color="#22c55e", linestyle="--", linewidth=1.6, alpha=0.45)
+    ax.invert_yaxis()
+    for idx, v in enumerate(cat_values):
+        ax.text(min(102.0, v + 1.6), idx, f"{int(round(v))}/100  ({cat_weights[idx]}%)", va="center", fontsize=12.5, color="#1a1d37", weight="bold")
+    chart2 = charts_dir / "figure-02-category-breakdown.png"
+    fig.savefig(chart2, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart2),
+            "title": "Category Breakdown",
+            "caption": "Figure 2: Score breakdown by category with weight percentages",
+        }
+    )
+
+    # Figure 3: Issues by severity
+    sev_labels = ["Low", "Medium", "High", "Critical"]
+    sev_colors = ["#3b95cb", "#f1c40f", "#e67e22", "#e74c3c"]
+    sev_counts_map = Counter(str(item.get("priority") or "Low").title() for item in issues)
+    sev_counts = [int(sev_counts_map.get(lbl, 0)) for lbl in sev_labels]
+
+    fig, ax = plt.subplots(figsize=(6.2, 6.2), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    ax.set_facecolor("#f3f4f6")
+    if sum(sev_counts) == 0:
+        ax.text(0.5, 0.5, "No issues detected", ha="center", va="center", fontsize=16, color="#4b5563")
+        ax.axis("off")
+    else:
+        label_text = [f"{c} issues\n{lbl}" for lbl, c in zip(sev_labels, sev_counts)]
+        ax.pie(
+            sev_counts,
+            labels=label_text,
+            autopct=lambda p: f"{int(round(p))}%",
+            colors=sev_colors,
+            startangle=90,
+            counterclock=False,
+            wedgeprops={"edgecolor": "#f3f4f6", "linewidth": 2},
+            textprops={"fontsize": 11.5, "color": "#374151"},
+        )
+    ax.set_title("Issues by Severity", fontsize=20, weight="bold", color="#1a1d37", pad=14)
+    chart3 = charts_dir / "figure-03-issues-severity.png"
+    fig.savefig(chart3, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart3),
+            "title": "Issues by Severity",
+            "caption": "Figure 3: Distribution of issues by severity tier",
+        }
+    )
+
+    # Figure 4: Weighted contribution
+    weighted = [round((float(scores.get(k) or 0.0) * WEIGHTS[k]), 2) for k in cat_keys]
+    short_labels = [
+        "Technical\n(25%)",
+        "Content\n(25%)",
+        "On-Page\n(20%)",
+        "Schema\n(10%)",
+        "Performance\n(10%)",
+        "Images\n(5%)",
+        "AI Search\n(5%)",
+    ]
+    fig, ax = plt.subplots(figsize=(11, 5.8), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    style_axes(ax)
+    bars = ax.bar(short_labels, weighted, color=["#3b95cb", "#9b59b6", "#1abc9c", "#e67e22", "#e74c3c", "#f1c40f", "#95a5a6"], edgecolor="#f3f4f6", width=0.66)
+    ax.set_ylabel("Weighted Points", fontsize=16, color="#4b5563")
+    ax.set_title(f"Weighted Score Contribution (Total: {round(sum(weighted), 1)}/100)", fontsize=20, weight="bold", color="#1a1d37", pad=14)
+    ax.set_ylim(0, max(25.0, max(weighted) + 4))
+    ax.tick_params(axis="x", labelsize=12)
+    for b, val in zip(bars, weighted):
+        ax.text(b.get_x() + b.get_width() / 2.0, b.get_height() + 0.45, f"{val:.1f}", ha="center", va="bottom", fontsize=16, color="#1a1d37", weight="bold")
+    chart4 = charts_dir / "figure-04-weighted-contribution.png"
+    fig.savefig(chart4, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart4),
+            "title": "Weighted Score Contribution",
+            "caption": "Figure 4: Weighted point contribution by category",
+        }
+    )
+
+    # Figure 5: Technical signals
+    pages_html = int(stats.get("pages_html") or 0)
+    missing_canonical = int(stats.get("missing_canonical") or 0)
+    canonical_score = 100.0 * ((pages_html - missing_canonical) / max(pages_html, 1))
+    headers_present = len(((stats.get("security_headers") or {}).get("present") or []))
+    security_score = 100.0 * (headers_present / max(len(SECURITY_HEADERS), 1))
+    sitemap_score = 100.0 if bool(stats.get("sitemap_ok")) else 40.0
+    median_ttfb = float(stats.get("median_response_ms") or 0.0)
+    ttfb_score = clamp(100.0 - max(0.0, median_ttfb - 180.0) / 5.0, 0.0, 100.0)
+    cache_issue = any("cache" in f"{str(i.get('title') or '')} {str(i.get('detail') or '')}".lower() for i in issues)
+    cache_score = 15.0 if cache_issue else 100.0
+    http2_score = 100.0 if int(stats.get("pages_successful") or 0) > 0 else 0.0
+    https_score = 100.0 if target_url.startswith("https://") else 40.0
+
+    tech_labels = ["TTFB", "HTTP/2", "HTTPS Redirect", "Security Headers", "Caching", "Canonical Tags", "Sitemap Coverage"]
+    tech_values = [ttfb_score, http2_score, https_score, security_score, cache_score, canonical_score, sitemap_score]
+    tech_colors = [_status_color(v) for v in tech_values]
+
+    fig, ax = plt.subplots(figsize=(10.6, 5.8), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    style_axes(ax)
+    y = list(range(len(tech_labels)))
+    ax.barh(y, tech_values, color=tech_colors, edgecolor="#f3f4f6", height=0.56)
+    ax.set_yticks(y)
+    ax.set_yticklabels(tech_labels, fontsize=13)
+    ax.set_xlim(0, 115)
+    ax.set_xlabel("Score", fontsize=14, color="#4b5563")
+    ax.set_title("Technical SEO Signals", fontsize=20, weight="bold", color="#1a1d37", pad=14)
+    for idx, val in enumerate(tech_values):
+        status = "PASS" if val >= 80 else ("WARN" if val >= 60 else "FAIL")
+        ax.text(min(111.5, val + 1.8), idx, status, va="center", fontsize=14, color=tech_colors[idx], weight="bold")
+    chart5 = charts_dir / "figure-05-technical-signals.png"
+    fig.savefig(chart5, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart5),
+            "title": "Technical SEO Signals",
+            "caption": "Figure 5: Technical pass/warn/fail signal profile",
+        }
+    )
+
+    # Figure 6: E-E-A-T radar
+    eeat = _estimate_eeat_dimensions(scores, issues)
+    dims = list(eeat.keys())
+    vals = [float(eeat[k]) for k in dims]
+    theta = [(2.0 * math.pi * i / len(dims)) for i in range(len(dims))]
+    theta += theta[:1]
+    vals_closed = vals + vals[:1]
+    target = [80.0] * (len(dims) + 1)
+
+    fig = plt.figure(figsize=(6.1, 6.1), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    ax = fig.add_subplot(111, polar=True)
+    ax.set_facecolor("#f3f4f6")
+    ax.set_theta_offset(math.pi / 2.0)
+    ax.set_theta_direction(-1)
+    ax.set_xticks(theta[:-1])
+    ax.set_xticklabels(dims, fontsize=12, fontweight="bold", color="#111827")
+    ax.set_ylim(0, 100)
+    ax.set_yticks([20, 40, 60, 80, 100])
+    ax.set_yticklabels(["20", "40", "60", "80", "100"], color="#6b7280")
+    ax.grid(color="#c5c8cf", alpha=0.35, linewidth=1)
+    ax.plot(theta, target, linestyle="--", color="#7bd9a8", linewidth=2.0, label="Target (80)")
+    ax.plot(theta, vals_closed, color="#e84a67", linewidth=2.4, marker="o")
+    ax.fill(theta, vals_closed, color="#e84a67", alpha=0.24)
+    for ang, v in zip(theta[:-1], vals):
+        ax.text(ang, min(100, v + 6), f"{int(round(v))}", color="#e84a67", fontsize=16, weight="bold", ha="center", va="center")
+    ax.set_title("E-E-A-T Assessment", fontsize=20, weight="bold", color="#1a1d37", pad=18)
+    ax.legend(loc="lower right", frameon=True, facecolor="#f3f4f6", edgecolor="#d1d5db")
+    chart6 = charts_dir / "figure-06-eeat-radar.png"
+    fig.savefig(chart6, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart6),
+            "title": "E-E-A-T Assessment",
+            "caption": "Figure 6: E-E-A-T dimension assessment vs target score of 80",
+        }
+    )
+
+    # Figure 7: projected score improvement
+    projected = _projected_score_series(total_score, issues)
+    phases = ["Current", "After Critical\nFixes", "After High\nFixes", "After Medium\nFixes", "Full\nOptimization"]
+    phase_colors = ["#f59e0b", "#f59e0b", "#22c55e", "#22c55e", "#22c55e"]
+
+    fig, ax = plt.subplots(figsize=(10.8, 5.6), dpi=170)
+    fig.patch.set_facecolor("#f3f4f6")
+    style_axes(ax)
+    bars = ax.bar(phases, projected, color=phase_colors, edgecolor="#f3f4f6", width=0.6)
+    ax.set_ylim(0, 105)
+    ax.set_ylabel("SEO Health Score", fontsize=16, color="#4b5563")
+    ax.set_title("Projected Score Improvement", fontsize=20, weight="bold", color="#1a1d37", pad=12)
+    ax.axhline(80, color="#7bd9a8", linestyle="--", linewidth=1.8)
+    ax.text(len(phases) - 0.6, 80.5, "Good", color="#5cbf88", fontsize=13)
+    ax.tick_params(axis="x", labelsize=12)
+    for bar, value in zip(bars, projected):
+        ax.text(bar.get_x() + bar.get_width() / 2.0, value + 1.3, f"{int(round(value))}", ha="center", va="bottom", fontsize=16, weight="bold", color="#1a1d37")
+    chart7 = charts_dir / "figure-07-projected-score.png"
+    fig.savefig(chart7, dpi=170, bbox_inches="tight", facecolor=fig.get_facecolor())
+    plt.close(fig)
+    figures.append(
+        {
+            "path": str(chart7),
+            "title": "Projected Score Improvement",
+            "caption": "Figure 7: Projected SEO Health Score improvement after each fix phase",
+        }
+    )
+
+    rel_figures = [
+        {
+            "path": _to_rel_path(Path(item["path"]), output_dir),
+            "title": item["title"],
+            "caption": item["caption"],
+        }
+        for item in figures
+    ]
+    return {
+        "enabled": True,
+        "reason": "",
+        "figures": rel_figures,
+        "charts_dir": str(charts_dir),
+    }
+
+
+def _collect_relative_screenshots(visual: dict[str, Any], output_dir: Path) -> list[str]:
+    rel_paths: list[str] = []
+    for shot in visual.get("screenshots", []):
+        try:
+            rel = Path(shot).resolve().relative_to(output_dir.resolve()).as_posix()
+        except Exception:
+            rel = str(shot).replace("\\", "/")
+        rel_paths.append(rel)
+    return rel_paths
+
+
+def _collect_relative_sections(visual: dict[str, Any], output_dir: Path) -> list[dict[str, Any]]:
+    rel_sections: list[dict[str, Any]] = []
+    for item in visual.get("sections", []):
+        raw_shot = item.get("screenshot")
+        rel_shot: str | None = None
+        if raw_shot:
+            try:
+                rel_shot = Path(raw_shot).resolve().relative_to(output_dir.resolve()).as_posix()
+            except Exception:
+                rel_shot = str(raw_shot).replace("\\", "/")
+        rel_sections.append(
+            {
+                "label": str(item.get("label") or "Section"),
+                "snippet": str(item.get("snippet") or ""),
+                "observation": str(item.get("observation") or ""),
+                "top_px": item.get("top_px"),
+                "height_px": item.get("height_px"),
+                "word_count": int(item.get("word_count") or 0),
+                "cta_count": int(item.get("cta_count") or 0),
+                "form_count": int(item.get("form_count") or 0),
+                "link_count": int(item.get("link_count") or 0),
+                "semantic_type": str(item.get("semantic_type") or ""),
+                "capture_reason": str(item.get("capture_reason") or ""),
+                "screenshot": rel_shot,
+                "ocr_status": str(item.get("ocr_status") or ""),
+                "ocr_reason": str(item.get("ocr_reason") or ""),
+                "ocr_excerpt": str(item.get("ocr_excerpt") or ""),
+                "ocr_line_count": int(item.get("ocr_line_count") or 0),
+                "ocr_avg_confidence": item.get("ocr_avg_confidence"),
+            }
+        )
+    return rel_sections
+
+
+def build_html_report(
+    target_url: str,
+    generated_at: str,
+    total_score: float,
+    grade: str,
+    band: str,
+    business_label: str,
+    business_confidence: float,
+    scores: dict[str, float | None],
+    stats: dict[str, Any],
+    issues: list[dict[str, Any]],
+    quick_wins: list[dict[str, Any]],
+    visual: dict[str, Any],
+    screenshot_paths: list[str],
+    section_insights: list[dict[str, Any]],
+    chart_figures: list[dict[str, str]] | None = None,
+    orchestration: dict[str, Any] | None = None,
+) -> str:
+    gauge_degrees = round(max(0.0, min(100.0, total_score)) * 3.6, 1)
+    score_cards: list[str] = []
+    for key in ("technical", "content", "onpage", "schema", "performance", "images", "ai_readiness"):
+        value = scores.get(key)
+        label = SCORE_LABELS[key]
+        pct = max(0.0, min(100.0, float(value))) if value is not None else 0.0
+        fill = _score_fill_color(value)
+        score_cards.append(
+            f"""
+            <div class="score-card">
+              <div class="score-row">
+                <span>{escape(label)}</span>
+                <span class="{_score_class(value)}">{'Not Measured' if value is None else escape(_fmt_number(value, 1))}</span>
+              </div>
+              <div class="score-bar"><span style="width:{pct:.1f}%;background:{fill};"></span></div>
+            </div>
+            """
+        )
+
+    score_chart_rows: list[str] = []
+    for key in ("technical", "content", "onpage", "schema", "performance", "images", "ai_readiness"):
+        value = scores.get(key)
+        if value is None:
+            continue
+        label = SCORE_LABELS[key]
+        pct = max(3.0, min(100.0, float(value)))
+        fill = _score_fill_color(value)
+        score_chart_rows.append(
+            f"""
+            <div class="chart-row">
+              <span>{escape(label)}</span>
+              <div class="chart-bar"><i style="width:{pct:.1f}%;background:{fill};"></i></div>
+              <strong>{escape(_fmt_number(value, 1))}</strong>
+            </div>
+            """
+        )
+    score_chart_html = "\n".join(score_chart_rows) if score_chart_rows else "<div class='empty'>No score data available.</div>"
+
+    issue_counts = {
+        "Critical": sum(1 for i in issues if str(i.get("priority") or "").lower() == "critical"),
+        "High": sum(1 for i in issues if str(i.get("priority") or "").lower() == "high"),
+        "Medium": sum(1 for i in issues if str(i.get("priority") or "").lower() == "medium"),
+        "Low": sum(1 for i in issues if str(i.get("priority") or "").lower() == "low"),
+    }
+    issue_total = sum(issue_counts.values())
+    if issue_total > 0:
+        critical_deg = 360.0 * (issue_counts["Critical"] / issue_total)
+        high_deg = critical_deg + 360.0 * (issue_counts["High"] / issue_total)
+        medium_deg = high_deg + 360.0 * (issue_counts["Medium"] / issue_total)
+        issue_donut_style = (
+            "conic-gradient("
+            f"#b42318 0deg {critical_deg:.2f}deg,"
+            f"#d5881f {critical_deg:.2f}deg {high_deg:.2f}deg,"
+            f"#0b74de {high_deg:.2f}deg {medium_deg:.2f}deg,"
+            f"#0f9d58 {medium_deg:.2f}deg 360deg)"
+        )
+    else:
+        issue_donut_style = "conic-gradient(#d7e3f0 0deg 360deg)"
+    issue_legend_html = "".join(
+        f"<div class='legend-item'><span class='swatch swatch-{name.lower()}'></span>{name}: <strong>{count}</strong></div>"
+        for name, count in issue_counts.items()
+    )
+
+    stats_grid = [
+        ("Pages crawled", _fmt_number(stats.get("pages_total"), 0)),
+        ("HTML pages", _fmt_number(stats.get("pages_html"), 0)),
+        ("Fetch errors", _fmt_number(stats.get("fetch_errors"), 0)),
+        ("HTTP errors", _fmt_number(stats.get("error_pages"), 0)),
+        ("Thin pages", _fmt_number(stats.get("thin_pages"), 0)),
+        ("Missing titles", _fmt_number(stats.get("missing_title"), 0)),
+        ("Missing meta", _fmt_number(stats.get("missing_meta"), 0)),
+        ("Schema pages", _fmt_number(stats.get("schema_pages"), 0)),
+        ("Images missing alt", f"{_fmt_number(stats.get('missing_alt'), 0)}/{_fmt_number(stats.get('total_images'), 0)}"),
+        ("Median response (ms)", _fmt_number(stats.get("median_response_ms"), 1)),
+        ("p90 response (ms)", _fmt_number(stats.get("p90_response_ms"), 1)),
+        ("Security headers", f"{len((stats.get('security_headers') or {}).get('present', []))}/{len(SECURITY_HEADERS)}"),
+    ]
+    cwv = stats.get("cwv", {}) or {}
+    if isinstance(cwv, dict):
+        mobile = cwv.get("mobile", {}) or {}
+        stats_grid.extend(
+            [
+                ("Perf source", str(stats.get("performance_source", "proxy"))),
+                ("CWV status", str(cwv.get("status", "n/a"))),
+                ("CWV composite", _fmt_number(cwv.get("composite_score"), 1)),
+                ("Field LCP p75 (ms)", _fmt_number(mobile.get("field_lcp_ms"), 1)),
+                ("Field INP p75 (ms)", _fmt_number(mobile.get("field_inp_ms"), 1)),
+                ("Field CLS p75", _fmt_number(mobile.get("field_cls"), 3)),
+                ("Lab perf score", _fmt_number(cwv.get("lab_score"), 1)),
+            ]
+        )
+    stats_cards = "\n".join(
+        f"<div class='stat'><span>{escape(label)}</span><strong>{escape(value)}</strong></div>" for label, value in stats_grid
+    )
+
+    if issues:
+        issue_rows = "\n".join(
+            f"""
+            <tr>
+              <td>{_priority_badge(item.get('priority', 'Low'))}</td>
+              <td>{escape(item.get('category', 'General'))}</td>
+              <td><strong>{escape(item.get('title', 'Untitled issue'))}</strong><div class='muted'>{escape(item.get('detail', ''))}</div></td>
+              <td>{escape(item.get('recommendation', ''))}</td>
+              <td>{escape(item.get('effort', 'n/a'))} / {escape(item.get('expected_lift', 'n/a'))}</td>
+            </tr>
+            """
+            for item in issues
+        )
+    else:
+        issue_rows = "<tr><td colspan='5'>No issues detected in sampled crawl.</td></tr>"
+
+    if quick_wins:
+        quick_win_items = "\n".join(
+            f"<li><strong>{escape(item['title'])}</strong>: {escape(item.get('recommendation', item['detail']))}</li>"
+            for item in quick_wins
+        )
+    else:
+        quick_win_items = "<li>No quick wins detected in this sample.</li>"
+
+    evidence = stats.get("example_urls", {})
+
+    def render_evidence(label: str, key: str) -> str:
+        urls = evidence.get(key) or []
+        if not urls:
+            return f"<li><strong>{escape(label)}:</strong> None</li>"
+        short = "".join(f"<li><code>{escape(url)}</code></li>" for url in urls[:8])
+        return f"<li><strong>{escape(label)}:</strong><ul>{short}</ul></li>"
+
+    evidence_html = "\n".join(
+        [
+            render_evidence("Missing title examples", "missing_title"),
+            render_evidence("Missing meta examples", "missing_meta"),
+            render_evidence("Thin content examples", "thin_content"),
+            render_evidence("Noindex examples", "noindex"),
+            render_evidence("Missing schema examples", "missing_schema"),
+            render_evidence("Missing alt examples", "alt_missing"),
+        ]
+    )
+
+    visual_checks = [
+        ("Visual status", str(visual.get("status", "skipped")).title()),
+        ("OCR status", str(visual.get("ocr_status", "not_run")).title()),
+        (
+            "OCR sections with text",
+            f"{_fmt_number(visual.get('ocr_sections_with_text'), 0)}/{_fmt_number(visual.get('ocr_sections_total'), 0)}",
+        ),
+        ("OCR avg confidence", _fmt_number(visual.get("ocr_avg_confidence"), 3)),
+        ("H1 above fold", _bool_label(visual.get("h1_visible_above_fold"))),
+        ("CTA above fold", _bool_label(visual.get("cta_visible_above_fold"))),
+        ("Viewport meta", _bool_label(visual.get("viewport_meta_present"))),
+        ("Horizontal mobile scroll", _bool_label(visual.get("horizontal_scroll_mobile"))),
+        ("Mobile nav accessible", _bool_label(visual.get("mobile_nav_accessible"))),
+        (
+            "Touch targets <48px",
+            f"{_fmt_number(visual.get('mobile_touch_targets_small'), 0)}/{_fmt_number(visual.get('mobile_touch_targets_total'), 0)}",
+        ),
+        ("Min mobile font (px)", _fmt_number(visual.get("mobile_min_font_px"), 1)),
+        ("Text readability (>=16px)", _bool_label(visual.get("mobile_text_readability_ok"))),
+        ("Desktop overlap flags", _fmt_number(visual.get("desktop_overlap_issues"), 0)),
+        ("Desktop overflow flags", _fmt_number(visual.get("desktop_overflow_issues"), 0)),
+    ]
+    if visual.get("ocr_reason"):
+        visual_checks.append(("OCR note", str(visual["ocr_reason"])))
+    if visual.get("reason"):
+        visual_checks.append(("Visual note", str(visual["reason"])))
+    visual_chips = "\n".join(
+        f"<div class='chip'><span>{escape(k)}</span><strong>{escape(v)}</strong></div>" for k, v in visual_checks
+    )
+    screenshots_html = "\n".join(
+        f"<figure><img src='{escape(path)}' alt='Audit screenshot'><figcaption><strong>{escape(Path(path).name)}</strong><br>{escape(_viewport_caption(path))}</figcaption></figure>"
+        for path in screenshot_paths
+    )
+    if not screenshots_html:
+        screenshots_html = "<div class='empty'>No screenshots captured in this run.</div>"
+
+    chart_figure_html = "<div class='empty'>Chart rendering unavailable in this run.</div>"
+    if chart_figures:
+        chart_figure_html = "\n".join(
+            f"""
+            <figure class="chart-figure">
+              <img src="{escape(item.get('path', ''))}" alt="{escape(item.get('title', 'Audit chart'))}">
+              <figcaption><strong>{escape(item.get('title', 'Chart'))}</strong><br>{escape(item.get('caption', ''))}</figcaption>
+            </figure>
+            """
+            for item in chart_figures
+        )
+
+    orchestration_html = "<div class='empty'>Specialist orchestration disabled for this run.</div>"
+    if orchestration and orchestration.get("enabled"):
+        track_rows = []
+        for track in orchestration.get("tracks", []):
+            status = str(track.get("status", "failed"))
+            status_cls = "status-ok" if status == "ok" else "status-failed"
+            metrics = track.get("summary_metrics") or {}
+            metrics_text = ", ".join(f"{k}={v}" for k, v in metrics.items()) if metrics else "n/a"
+            report_link = ""
+            primary_report = str(track.get("primary_report") or "")
+            if primary_report:
+                report_link = f"{escape(track.get('name', 'track'))}/{escape(primary_report)}"
+            stderr_tail = str(track.get("stderr_tail") or "")
+            error_hint = escape(stderr_tail.splitlines()[-1]) if stderr_tail else ""
+            track_rows.append(
+                f"""
+                <tr>
+                  <td>{escape(str(track.get("name", "")))}</td>
+                  <td><span class="track-status {status_cls}">{escape(status)}</span></td>
+                  <td>{escape(_fmt_number(track.get("duration_sec"), 2))}s</td>
+                  <td>{escape(metrics_text)}</td>
+                  <td>{escape(report_link) if report_link else "n/a"}</td>
+                  <td>{error_hint or "n/a"}</td>
+                </tr>
+                """
+            )
+        orchestration_html = f"""
+        <div class="orchestration-meta">
+          <div><strong>Tracks:</strong> {orchestration.get("success_count", 0)}/{orchestration.get("total_tracks", 0)} succeeded</div>
+          <div><strong>Summary file:</strong> <code>ORCHESTRATION-SUMMARY.json</code></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Track</th>
+              <th>Status</th>
+              <th>Duration</th>
+              <th>Summary Metrics</th>
+              <th>Primary Report</th>
+              <th>Failure Hint</th>
+            </tr>
+          </thead>
+          <tbody>
+            {"".join(track_rows)}
+          </tbody>
+        </table>
+        """
+
+    if section_insights:
+        section_cards = []
+        for sec in section_insights:
+            label = escape(sec["label"])
+            snippet = escape(sec["snippet"] or "No text snippet captured.")
+            observation = escape(sec["observation"] or "No observation generated.")
+            top_px = escape(_fmt_number(sec.get("top_px"), 1))
+            height_px = escape(_fmt_number(sec.get("height_px"), 1))
+            word_count = escape(_fmt_number(sec.get("word_count"), 0))
+            cta_count = escape(_fmt_number(sec.get("cta_count"), 0))
+            form_count = escape(_fmt_number(sec.get("form_count"), 0))
+            link_count = escape(_fmt_number(sec.get("link_count"), 0))
+            ocr_excerpt = escape(sec.get("ocr_excerpt") or "")
+            ocr_conf = escape(_fmt_number(sec.get("ocr_avg_confidence"), 3))
+            ocr_lines = escape(_fmt_number(sec.get("ocr_line_count"), 0))
+            ocr_status = escape(sec.get("ocr_status") or "n/a")
+            semantic_type = escape(sec.get("semantic_type") or "content")
+            capture_reason = escape(sec.get("capture_reason") or "Representative section selected for layout QA.")
+            shot = sec.get("screenshot")
+            if shot:
+                shot_html = f"<img src='{escape(shot)}' alt='Section snapshot'>"
+            else:
+                shot_html = "<div class='section-empty'>No section screenshot</div>"
+            section_cards.append(
+                f"""
+                <article class="section-card">
+                  <div class="section-shot">{shot_html}</div>
+                  <div class="section-body">
+                    <h3>{label}</h3>
+                    <p class="section-snippet">{snippet}</p>
+                    <p class="section-rationale"><strong>Why captured:</strong> {capture_reason}</p>
+                    <p class="section-observation"><strong>Finding:</strong> {observation}</p>
+                    <p class="section-ocr"><strong>OCR ({ocr_status})</strong>: {ocr_excerpt or 'No OCR text captured.'}</p>
+                    <div class="section-metrics">
+                      <span>Type: {semantic_type}</span>
+                      <span>Top: {top_px}px</span>
+                      <span>Height: {height_px}px</span>
+                      <span>Words: {word_count}</span>
+                      <span>CTA: {cta_count}</span>
+                      <span>Forms: {form_count}</span>
+                      <span>Links: {link_count}</span>
+                      <span>OCR lines: {ocr_lines}</span>
+                      <span>OCR conf: {ocr_conf}</span>
+                    </div>
+                  </div>
+                </article>
+                """
+            )
+        section_intelligence_html = "\n".join(section_cards)
+    else:
+        section_intelligence_html = "<div class='empty'>No section-level insights captured.</div>"
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SEO Audit Report - {escape(target_url)}</title>
+  <style>
+    :root {{
+      --bg: #f2f6fc;
+      --panel: #ffffff;
+      --line: #d8e2ef;
+      --text: #0f172a;
+      --muted: #4b6078;
+      --accent: #0b74de;
+      --accent-soft: #eaf3ff;
+      --good: #0f9d58;
+      --warn: #b9750a;
+      --danger: #b42318;
+    }}
+    * {{
+      box-sizing: border-box;
+      min-width: 0;
+    }}
+    body {{
+      margin: 0;
+      font-family: "Inter", "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #f6f9fc 0%, #edf3fb 100%);
+      color: var(--text);
+      line-height: 1.45;
+      overflow-x: hidden;
+    }}
+    .page {{
+      width: min(1120px, calc(100vw - 28px));
+      margin: 16px auto 32px;
+    }}
+    .panel {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 12px;
+      box-shadow: 0 5px 18px rgba(15, 23, 42, 0.07);
+    }}
+    .hero {{
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 14px;
+      align-items: stretch;
+    }}
+    .title {{
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      color: #0f2747;
+    }}
+    .subtitle {{
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 14px;
+    }}
+    .kpis {{
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }}
+    .kpi {{
+      border: 1px solid #d3deec;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      padding: 8px 10px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }}
+    .kpi span {{
+      color: #355270;
+    }}
+    .gauge-wrap {{
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }}
+    .gauge {{
+      width: 196px;
+      height: 196px;
+      border-radius: 50%;
+      background: conic-gradient(var(--accent) {gauge_degrees}deg, #d6e4f4 0deg);
+      position: relative;
+      border: 1px solid #c6d6ea;
+    }}
+    .gauge::after {{
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #cfe0f2;
+    }}
+    .gauge-inner {{
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8px;
+    }}
+    .gauge-score {{
+      font-size: 42px;
+      font-weight: 800;
+      color: #0f9d58;
+      line-height: 1;
+    }}
+    .gauge-meta {{
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }}
+    .section-title {{
+      font-size: 21px;
+      font-weight: 750;
+      margin: 0 0 12px;
+      color: #0d508f;
+      border-bottom: 1px solid #d8e2ef;
+      padding-bottom: 8px;
+    }}
+    .scores {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }}
+    .score-card {{
+      border: 1px solid #d4dfec;
+      border-radius: 10px;
+      background: #f9fbff;
+      padding: 10px;
+    }}
+    .score-row {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 7px;
+    }}
+    .score-bar {{
+      height: 9px;
+      border-radius: 99px;
+      background: #e1ebf8;
+      overflow: hidden;
+    }}
+    .score-bar span {{
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #0b74de, #33a0ff);
+    }}
+    .score-excellent {{
+      color: var(--good);
+      font-weight: 700;
+    }}
+    .score-strong {{
+      color: #0c62be;
+      font-weight: 700;
+    }}
+    .score-good {{
+      color: #2368a2;
+      font-weight: 700;
+    }}
+    .score-needs {{
+      color: var(--warn);
+      font-weight: 700;
+    }}
+    .score-risk {{
+      color: var(--danger);
+      font-weight: 700;
+    }}
+    .score-na {{
+      color: var(--muted);
+      font-style: italic;
+    }}
+    .viz-grid {{
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 12px;
+    }}
+    .viz-card {{
+      border: 1px solid #d4dfec;
+      border-radius: 10px;
+      background: #f9fbff;
+      padding: 10px;
+    }}
+    .viz-card h3 {{
+      margin: 0 0 10px;
+      font-size: 15px;
+      color: #104782;
+    }}
+    .chart-stack {{
+      display: grid;
+      gap: 8px;
+    }}
+    .chart-row {{
+      display: grid;
+      grid-template-columns: 150px 1fr 42px;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+      color: #1e334b;
+    }}
+    .chart-row strong {{
+      text-align: right;
+      color: #0e3158;
+    }}
+    .chart-bar {{
+      height: 10px;
+      border-radius: 999px;
+      background: #dfebf8;
+      overflow: hidden;
+      border: 1px solid #d2dfef;
+    }}
+    .chart-bar i {{
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+    }}
+    .donut-wrap {{
+      display: flex;
+      justify-content: center;
+      margin-top: 2px;
+      margin-bottom: 10px;
+    }}
+    .donut {{
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      position: relative;
+      border: 1px solid #d0deee;
+    }}
+    .donut::after {{
+      content: "";
+      position: absolute;
+      inset: 30px;
+      background: #fff;
+      border-radius: 50%;
+      border: 1px solid #d6e2ef;
+    }}
+    .donut-inner {{
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #163a63;
+      text-align: center;
+    }}
+    .donut-inner strong {{
+      font-size: 34px;
+      line-height: 1;
+    }}
+    .donut-inner span {{
+      margin-top: 4px;
+      font-size: 12px;
+      color: #526982;
+    }}
+    .legend {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      font-size: 12px;
+      color: #2a3f57;
+    }}
+    .legend-item {{
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1px solid #d7e2ef;
+      border-radius: 999px;
+      padding: 4px 8px;
+    }}
+    .swatch {{
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      flex: 0 0 10px;
+    }}
+    .swatch-critical {{ background: #b42318; }}
+    .swatch-high {{ background: #d5881f; }}
+    .swatch-medium {{ background: #0b74de; }}
+    .swatch-low {{ background: #0f9d58; }}
+    .stats {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }}
+    .stat {{
+      border: 1px solid #d4dfec;
+      border-radius: 8px;
+      background: #f9fbff;
+      padding: 8px 9px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }}
+    .stat span {{
+      color: #4e6480;
+    }}
+    .priority {{
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }}
+    .priority-critical {{
+      background: #fef1f2;
+      border: 1px solid #f7c7cc;
+      color: #b42318;
+    }}
+    .priority-high {{
+      background: #fff5e8;
+      border: 1px solid #f3cf9f;
+      color: #9f580a;
+    }}
+    .priority-medium {{
+      background: #edf6ff;
+      border: 1px solid #bfdaf7;
+      color: #1e64a8;
+    }}
+    .priority-low {{
+      background: #ebf9ef;
+      border: 1px solid #b9e5c6;
+      color: #0f763f;
+    }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+    }}
+    th, td {{
+      border: 1px solid #d5dfec;
+      vertical-align: top;
+      padding: 8px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }}
+    th {{
+      text-align: left;
+      color: #17324d;
+      background: #f2f7fd;
+      font-size: 12px;
+    }}
+    .muted {{
+      color: var(--muted);
+      margin-top: 4px;
+    }}
+    .cols {{
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 12px;
+    }}
+    ul {{
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }}
+    li {{
+      margin-bottom: 6px;
+    }}
+    code {{
+      background: #f3f8ff;
+      border: 1px solid #cfe0f3;
+      border-radius: 6px;
+      padding: 2px 6px;
+      color: #0c4f92;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }}
+    .chips {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+    .chip {{
+      border: 1px solid #d2deec;
+      border-radius: 999px;
+      padding: 6px 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #f7faff;
+      font-size: 12px;
+    }}
+    .chip span {{
+      color: #536b87;
+    }}
+    .shots {{
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: start;
+    }}
+    .chart-grid {{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 6px;
+    }}
+    .chart-figure {{
+      background: #f3f4f6;
+    }}
+    .chart-figure img {{
+      width: 100%;
+      max-height: none;
+      object-fit: contain;
+      background: #f3f4f6;
+    }}
+    figure {{
+      margin: 0;
+      border: 1px solid #d2deec;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      break-inside: avoid;
+    }}
+    img {{
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }}
+    .shots img {{
+      max-height: 360px;
+      object-fit: cover;
+      object-position: top;
+    }}
+    figcaption {{
+      padding: 7px 9px;
+      font-size: 11px;
+      color: #4c627b;
+      border-top: 1px solid #d2deec;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }}
+    .empty {{
+      border: 1px dashed #b9cae0;
+      border-radius: 10px;
+      color: #4c627b;
+      text-align: center;
+      padding: 20px;
+      background: #f8fbff;
+    }}
+    .section-grid {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }}
+    .section-card {{
+      border: 1px solid #d2deec;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      break-inside: avoid;
+    }}
+    .section-shot {{
+      border-bottom: 1px solid #d2deec;
+      background: #f8fbff;
+      min-height: 120px;
+    }}
+    .section-shot img {{
+      width: 100%;
+      display: block;
+      max-height: 240px;
+      object-fit: cover;
+      object-position: top;
+    }}
+    .section-empty {{
+      color: #4c627b;
+      text-align: center;
+      font-size: 12px;
+      padding: 18px;
+    }}
+    .section-body {{
+      padding: 10px;
+    }}
+    .section-body h3 {{
+      margin: 0 0 6px;
+      color: #104782;
+      font-size: 16px;
+    }}
+    .section-snippet {{
+      margin: 0;
+      font-size: 12px;
+      color: #1f3147;
+    }}
+    .section-observation {{
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: #215f93;
+    }}
+    .section-rationale {{
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: #214566;
+    }}
+    .section-ocr {{
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: #176089;
+    }}
+    .section-metrics {{
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }}
+    .section-metrics span {{
+      border: 1px solid #ccddef;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 11px;
+      color: #4b6078;
+      background: #f6faff;
+    }}
+    .orchestration-meta {{
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }}
+    .track-status {{
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid #cedff1;
+    }}
+    .status-ok {{
+      background: #ebf9ef;
+      color: #0f763f;
+      border-color: #b9e5c6;
+    }}
+    .status-failed {{
+      background: #fef1f2;
+      color: #b42318;
+      border-color: #f7c7cc;
+    }}
+    .foot {{
+      margin-top: 12px;
+      color: #4c627b;
+      font-size: 11px;
+      text-align: right;
+    }}
+    @media (max-width: 980px) {{
+      .hero,
+      .scores,
+      .viz-grid,
+      .stats,
+      .cols,
+      .chart-grid,
+      .shots,
+      .section-grid {{
+        grid-template-columns: 1fr;
+      }}
+      .gauge-wrap {{
+        justify-content: flex-start;
+      }}
+    }}
+    @media print {{
+      @page {{
+        size: A4;
+        margin: 10mm;
+      }}
+      body {{
+        margin: 0;
+        background: #fff;
+        color: var(--text);
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }}
+      .page {{
+        width: 100%;
+        margin: 0;
+      }}
+      .panel {{
+        box-shadow: none;
+        margin-top: 8px;
+        border-color: #d3deec;
+        break-inside: auto;
+      }}
+      .hero,
+      .scores,
+      .viz-grid,
+      .stats,
+      .cols,
+      .chart-grid,
+      .shots,
+      .section-grid {{
+        grid-template-columns: 1fr;
+      }}
+      .chart-row {{
+        grid-template-columns: 140px 1fr 38px;
+      }}
+      figure,
+      .section-card,
+      table,
+      .chip,
+      .kpi,
+      .score-card,
+      .stat {{
+        break-inside: avoid-page;
+      }}
+      th {{
+        background: #edf4fc;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="panel hero">
+      <div>
+        <div class="title">Codex SEO Audit Dossier</div>
+        <div class="subtitle">Target: {escape(target_url)}</div>
+        <div class="subtitle">Generated: {escape(generated_at)}</div>
+        <div class="subtitle">Business Type: {escape(business_label)} ({business_confidence:.1f}% confidence)</div>
+        <div class="kpis">
+          <div class="kpi"><span>Pages Crawled</span><strong>{escape(_fmt_number(stats.get("pages_total"), 0))}</strong></div>
+          <div class="kpi"><span>HTML Pages</span><strong>{escape(_fmt_number(stats.get("pages_html"), 0))}</strong></div>
+          <div class="kpi"><span>Critical Issues</span><strong>{sum(1 for i in issues if i.get("priority") == "Critical")}</strong></div>
+          <div class="kpi"><span>High Issues</span><strong>{sum(1 for i in issues if i.get("priority") == "High")}</strong></div>
+        </div>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge">
+          <div class="gauge-inner">
+            <div class="gauge-score">{_fmt_number(total_score, 1)}</div>
+            <div class="gauge-meta">Grade {escape(grade)} - {escape(band)}</div>
+            <div class="gauge-meta">SEO Health</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Category Scores</h2>
+      <div class="scores">
+        {"".join(score_cards)}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Visual Scorecards</h2>
+      <div class="viz-grid">
+        <article class="viz-card">
+          <h3>Category Distribution</h3>
+          <div class="chart-stack">{score_chart_html}</div>
+        </article>
+        <article class="viz-card">
+          <h3>Issue Severity Mix</h3>
+          <div class="donut-wrap">
+            <div class="donut" style="background:{issue_donut_style}">
+              <div class="donut-inner"><strong>{issue_total}</strong><span>findings</span></div>
+            </div>
+          </div>
+          <div class="legend">{issue_legend_html}</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Reference Figure Pack</h2>
+      <div class="chart-grid">{chart_figure_html}</div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Crawl and Quality Stats</h2>
+      <div class="stats">
+        {stats_cards}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Prioritized Findings</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Priority</th>
+            <th>Category</th>
+            <th>Issue</th>
+            <th>Recommendation</th>
+            <th>Effort / Lift</th>
+          </tr>
+        </thead>
+        <tbody>
+          {issue_rows}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel cols">
+      <div>
+        <h2 class="section-title">Quick Wins</h2>
+        <ul>{quick_win_items}</ul>
+      </div>
+      <div>
+        <h2 class="section-title">Evidence Appendix</h2>
+        <ul>{evidence_html}</ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Visual Evidence</h2>
+      <div class="chips">{visual_chips}</div>
+      <div class="shots">{screenshots_html}</div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Section Intelligence</h2>
+      <div class="section-grid">{section_intelligence_html}</div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Specialist Orchestration</h2>
+      {orchestration_html}
+    </section>
+
+    <div class="foot">Generated by codex-seo audit runner | template audit-dossier-v4</div>
+  </div>
+</body>
+</html>
+"""
+
+
+def write_html_and_pdf_reports(
+    output_dir: Path,
+    html_content: str,
+) -> dict[str, str | None]:
+    html_report = output_dir / "FULL-AUDIT-REPORT.html"
+    pdf_report = output_dir / "FULL-AUDIT-REPORT.pdf"
+    html_report.write_text(html_content, encoding="utf-8")
+
+    pdf_status = "skipped"
+    pdf_reason = "Playwright unavailable. Install with: pip install playwright && python -m playwright install chromium"
+    pdf_path: str | None = None
+
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return {
+            "html_report": str(html_report),
+            "pdf_report": pdf_path,
+            "pdf_status": pdf_status,
+            "pdf_reason": pdf_reason,
+        }
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 1400, "height": 2100})
+            page.goto(html_report.resolve().as_uri(), wait_until="networkidle")
+            page.pdf(
+                path=str(pdf_report),
+                format="A4",
+                print_background=True,
+                margin={"top": "10mm", "right": "10mm", "bottom": "12mm", "left": "10mm"},
+            )
+            browser.close()
+        pdf_status = "ok"
+        pdf_reason = ""
+        pdf_path = str(pdf_report)
+    except Exception as exc:
+        pdf_status = "skipped"
+        pdf_reason = f"PDF render failed: {exc}"
+
+    return {
+        "html_report": str(html_report),
+        "pdf_report": pdf_path,
+        "pdf_status": pdf_status,
+        "pdf_reason": pdf_reason,
+    }
+
+
 def write_reports(
     output_dir: Path,
     target_url: str,
@@ -1082,7 +3572,8 @@ def write_reports(
     stats: dict[str, Any],
     issues: list[dict[str, Any]],
     visual: dict[str, Any],
-) -> None:
+    orchestration: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     full_report = output_dir / "FULL-AUDIT-REPORT.md"
     action_plan = output_dir / "ACTION-PLAN.md"
@@ -1128,18 +3619,9 @@ def write_reports(
     )
 
     score_lines = []
-    label_map = {
-        "technical": "Technical SEO",
-        "content": "Content Quality",
-        "onpage": "On-Page SEO",
-        "schema": "Schema / Structured Data",
-        "performance": "Performance",
-        "images": "Images",
-        "ai_readiness": "AI Search Readiness",
-    }
     for key in ("technical", "content", "onpage", "schema", "performance", "images", "ai_readiness"):
         value = scores[key]
-        label = label_map[key]
+        label = SCORE_LABELS[key]
         if value is None:
             score_lines.append(f"| {label} | Not Measured | Not enough evidence |")
         else:
@@ -1154,13 +3636,23 @@ def write_reports(
     visual_lines.append(f"- Status: {visual.get('status', 'skipped')}")
     if visual.get("reason"):
         visual_lines.append(f"- Note: {visual['reason']}")
-    if visual.get("screenshots"):
-        for shot in visual["screenshots"]:
-            try:
-                rel = Path(shot).resolve().relative_to(output_dir.resolve()).as_posix()
-            except Exception:
-                rel = str(shot).replace("\\", "/")
+    screenshot_rel_paths = _collect_relative_screenshots(visual, output_dir)
+    section_rel_data = _collect_relative_sections(visual, output_dir)
+    if screenshot_rel_paths:
+        for rel in screenshot_rel_paths:
             visual_lines.append(f"- Screenshot: `{rel}`")
+    if section_rel_data:
+        visual_lines.append(f"- Section snapshots analyzed: {len(section_rel_data)}")
+        for sec in section_rel_data[:6]:
+            visual_lines.append(
+                f"- Section `{sec['label']}`: {sec['observation']} (words={sec['word_count']}, cta={sec['cta_count']}, forms={sec['form_count']})"
+            )
+            if sec.get("capture_reason"):
+                visual_lines.append(f"  - Why captured: {sec['capture_reason']}")
+            if sec.get("ocr_excerpt"):
+                visual_lines.append(
+                    f"  - OCR: {sec['ocr_excerpt'][:180]} (lines={sec.get('ocr_line_count')}, conf={sec.get('ocr_avg_confidence')})"
+                )
     if visual.get("h1_visible_above_fold") is not None:
         visual_lines.append(f"- H1 visible above fold: {visual['h1_visible_above_fold']}")
     if visual.get("cta_visible_above_fold") is not None:
@@ -1169,6 +3661,57 @@ def write_reports(
         visual_lines.append(f"- Viewport meta present: {visual['viewport_meta_present']}")
     if visual.get("horizontal_scroll_mobile") is not None:
         visual_lines.append(f"- Horizontal scroll on mobile: {visual['horizontal_scroll_mobile']}")
+    if visual.get("mobile_nav_accessible") is not None:
+        visual_lines.append(f"- Mobile navigation detected: {visual['mobile_nav_accessible']}")
+    if visual.get("mobile_touch_targets_total") is not None and visual.get("mobile_touch_targets_small") is not None:
+        visual_lines.append(
+            f"- Touch targets below 48px: {visual['mobile_touch_targets_small']}/{visual['mobile_touch_targets_total']}"
+        )
+    if visual.get("mobile_min_font_px") is not None:
+        visual_lines.append(f"- Minimum mobile font size (px): {visual['mobile_min_font_px']}")
+    if visual.get("mobile_text_readability_ok") is not None:
+        visual_lines.append(f"- Text readability (>=16px): {visual['mobile_text_readability_ok']}")
+    if visual.get("desktop_overlap_issues") is not None:
+        visual_lines.append(f"- Desktop overlap signal count: {visual['desktop_overlap_issues']}")
+    if visual.get("desktop_overflow_issues") is not None:
+        visual_lines.append(f"- Desktop overflow signal count: {visual['desktop_overflow_issues']}")
+    if visual.get("ocr_status"):
+        visual_lines.append(f"- OCR status: {visual.get('ocr_status')}")
+    if visual.get("ocr_sections_total") is not None and visual.get("ocr_sections_with_text") is not None:
+        visual_lines.append(
+            f"- OCR sections with text: {visual.get('ocr_sections_with_text')}/{visual.get('ocr_sections_total')}"
+        )
+    if visual.get("ocr_avg_confidence") is not None:
+        visual_lines.append(f"- OCR average confidence: {visual.get('ocr_avg_confidence')}")
+    if visual.get("ocr_reason"):
+        visual_lines.append(f"- OCR note: {visual.get('ocr_reason')}")
+
+    orchestration_lines: list[str] = []
+    if orchestration and orchestration.get("enabled"):
+        orchestration_lines.append(
+            f"- Specialist tracks succeeded: {orchestration.get('success_count', 0)}/{orchestration.get('total_tracks', 0)}"
+        )
+        orchestration_lines.append("- Summary file: `ORCHESTRATION-SUMMARY.json`")
+        orchestration_lines.append("")
+        orchestration_lines.append("| Track | Status | Duration (s) | Primary Report | Metrics |")
+        orchestration_lines.append("|---|---|---:|---|---|")
+        for track in orchestration.get("tracks", []):
+            metrics = track.get("summary_metrics") or {}
+            metrics_text = ", ".join(f"{k}={v}" for k, v in metrics.items()) if metrics else "n/a"
+            primary_report = str(track.get("primary_report") or "")
+            if primary_report:
+                primary_report = f"`tracks/{track.get('name')}/{primary_report}`"
+            else:
+                primary_report = "n/a"
+            orchestration_lines.append(
+                f"| {track.get('name')} | {track.get('status')} | {track.get('duration_sec')} | {primary_report} | {metrics_text} |"
+            )
+        failed = orchestration.get("failed_tracks") or []
+        if failed:
+            orchestration_lines.append("")
+            orchestration_lines.append(f"- Failed tracks: {', '.join(str(x) for x in failed)}")
+    else:
+        orchestration_lines.append("- Specialist orchestration disabled for this run.")
 
     full_content = f"""# FULL SEO AUDIT REPORT
 
@@ -1222,6 +3765,12 @@ def write_reports(
 - Images missing alt: {stats['missing_alt']}/{stats['total_images']}
 - Median response time (ms): {stats['median_response_ms']}
 - p90 response time (ms): {stats['p90_response_ms']}
+- Performance data source: {stats.get('performance_source', 'proxy')}
+- CWV status: {(stats.get('cwv') or {}).get('status', 'n/a')}
+- Mobile field LCP p75 (ms): {((stats.get('cwv') or {}).get('mobile') or {}).get('field_lcp_ms')}
+- Mobile field INP p75 (ms): {((stats.get('cwv') or {}).get('mobile') or {}).get('field_inp_ms')}
+- Mobile field CLS p75: {((stats.get('cwv') or {}).get('mobile') or {}).get('field_cls')}
+- Lighthouse performance score (avg): {(stats.get('cwv') or {}).get('lab_score')}
 - Word count p25 / median / p75: {stats['word_count_p25']} / {stats['word_count_median']} / {stats['word_count_p75']}
 - Security headers present: {len(stats['security_headers']['present'])}/{len(SECURITY_HEADERS)}
 
@@ -1229,9 +3778,13 @@ def write_reports(
 
 {chr(10).join(visual_lines)}
 
+## Specialist Orchestration
+
+{chr(10).join(orchestration_lines)}
+
 ## Notes
 
-- Performance score is based on server response-time proxy only, not lab CWV (LCP/INP/CLS).
+- Performance score uses live Lighthouse + CrUX when available, otherwise response-time proxy fallback.
 - This audit is sample-based and depends on crawl reach within the max-page budget.
 """
 
@@ -1296,7 +3849,7 @@ On-page score is **{scores['onpage']}**. Current completeness: titles missing (*
 Schema score is **{scores['schema']}** with coverage of **{stats['schema_pages']}/{max(stats['pages_html'], 1)}** crawled HTML pages. Expand schema depth by template class (Organization, WebSite, BreadcrumbList, plus Article/Product/Service variants) and validate serialization for every major template family.
 
 ### Performance Track Narrative
-Performance scored **{scores['performance']}** based on HTTP response proxy. Current latency baseline is median **{stats['median_response_ms']}ms** and p90 **{stats['p90_response_ms']}ms**. Treat this as a directional benchmark and pair it with field CWV for production prioritization.
+Performance scored **{scores['performance']}** using **{stats.get('performance_source', 'proxy')}** data. Current latency baseline is median **{_fmt_number(stats['median_response_ms'], 1)} ms** and p90 **{_fmt_number(stats['p90_response_ms'], 1)} ms**. Mobile field CWV p75 currently reads LCP **{_fmt_number((((stats.get('cwv') or {}).get('mobile') or {}).get('field_lcp_ms')), 1)} ms**, INP **{_fmt_number((((stats.get('cwv') or {}).get('mobile') or {}).get('field_inp_ms')), 1)} ms**, CLS **{_fmt_number((((stats.get('cwv') or {}).get('mobile') or {}).get('field_cls')), 3)}** when available.
 
 ### AI Readiness Track Narrative
 AI readiness scored **{scores['ai_readiness']}**. Root-level AI control files (`llms.txt`: {stats['llms_ok']}) and trust navigation signals (`about/contact`: {stats['about_or_contact_links']}) remain core levers for citation quality and answer inclusion.
@@ -1411,6 +3964,57 @@ AI readiness scored **{scores['ai_readiness']}**. Root-level AI control files (`
 
     full_report.write_text(full_content, encoding="utf-8")
     action_plan.write_text("\n".join(plan_lines).strip() + "\n", encoding="utf-8")
+
+    chart_pack = generate_reference_charts(
+        output_dir=output_dir,
+        target_url=target_url,
+        total_score=total_score,
+        scores=scores,
+        stats=stats,
+        issues=issues,
+    )
+    chart_figures = chart_pack.get("figures") if isinstance(chart_pack, dict) else []
+
+    html_content = build_html_report(
+        target_url=target_url,
+        generated_at=generated_at,
+        total_score=total_score,
+        grade=grade,
+        band=band,
+        business_label=business_label,
+        business_confidence=business_confidence,
+        scores=scores,
+        stats=stats,
+        issues=issues,
+        quick_wins=quick_wins,
+        visual=visual,
+        screenshot_paths=screenshot_rel_paths,
+        section_insights=section_rel_data,
+        chart_figures=chart_figures,
+        orchestration=orchestration,
+    )
+    rendered_outputs = write_html_and_pdf_reports(output_dir=output_dir, html_content=html_content)
+
+    artifacts = {
+        "markdown_report": str(full_report),
+        "action_plan": str(action_plan),
+        "summary_json": str(summary_json),
+        "issues_json": str(issues_json),
+        "html_report": rendered_outputs["html_report"],
+        "pdf_report": rendered_outputs["pdf_report"],
+        "pdf_status": rendered_outputs["pdf_status"],
+        "pdf_reason": rendered_outputs["pdf_reason"],
+        "charts_enabled": bool(chart_pack.get("enabled")) if isinstance(chart_pack, dict) else False,
+        "charts_reason": str(chart_pack.get("reason") or "") if isinstance(chart_pack, dict) else "",
+        "chart_figures": chart_figures if isinstance(chart_figures, list) else [],
+        "charts_dir": (str(output_dir / "charts") if bool(chart_pack.get("enabled")) else None) if isinstance(chart_pack, dict) else None,
+        "orchestration_summary": (
+            str(output_dir / "ORCHESTRATION-SUMMARY.json")
+            if (output_dir / "ORCHESTRATION-SUMMARY.json").exists()
+            else None
+        ),
+    }
+
     summary_json.write_text(
         json.dumps(
             {
@@ -1423,12 +4027,15 @@ AI readiness scored **{scores['ai_readiness']}**. Root-level AI control files (`
                 "stats": stats,
                 "issues": issues,
                 "visual": visual,
+                "orchestration": orchestration or {"enabled": False},
+                "artifacts": artifacts,
             },
             indent=2,
         ),
         encoding="utf-8",
     )
     issues_json.write_text(json.dumps(issues, indent=2), encoding="utf-8")
+    return artifacts
 
 
 def main() -> int:
@@ -1442,6 +4049,23 @@ def main() -> int:
         choices=["auto", "on", "off"],
         default="auto",
         help="Run visual checks with Playwright (auto=run if available).",
+    )
+    parser.add_argument(
+        "--orchestrate",
+        choices=["on", "off"],
+        default="on",
+        help="Run specialist deterministic tracks in parallel and merge outputs.",
+    )
+    parser.add_argument(
+        "--cwv-source",
+        choices=["auto", "pagespeed", "off"],
+        default="auto",
+        help="CWV data source (auto/pagespeed/off).",
+    )
+    parser.add_argument(
+        "--pagespeed-key",
+        default=os.getenv("PAGESPEED_API_KEY", ""),
+        help="Optional Google PageSpeed API key (or set PAGESPEED_API_KEY).",
     )
     parser.add_argument("--output-dir", default="seo-audit-output", help="Output directory")
     args = parser.parse_args()
@@ -1472,23 +4096,60 @@ def main() -> int:
         print("Error: crawl returned no pages")
         return 1
 
+    print("Fetching CWV...")
+    cwv_data = run_cwv_assessment(
+        target_url=target_url,
+        timeout=args.timeout,
+        source=args.cwv_source,
+        pagespeed_key=str(args.pagespeed_key or "").strip(),
+    )
+    print(f"CWV status: {cwv_data.get('status')} ({cwv_data.get('source', args.cwv_source)})")
+    if cwv_data.get("reason"):
+        print(f"CWV note: {cwv_data.get('reason')}")
+
     print("Scoring...")
-    scores, stats, issues = compute_scores(pages, target_url, crawl_info, timeout=args.timeout)
+    scores, stats, issues = compute_scores(
+        pages,
+        target_url,
+        crawl_info,
+        timeout=args.timeout,
+        cwv=cwv_data,
+    )
 
     print("Running visual checks...")
     visual = run_visual_checks(target_url, output_dir, args.visual)
 
+    orchestration: dict[str, Any] | None = None
+    if args.orchestrate == "on":
+        print("Running specialist orchestration...")
+        orchestration = run_specialist_orchestration(
+            target_url=target_url,
+            output_dir=output_dir,
+            timeout=args.timeout,
+            visual_mode=args.visual,
+        )
+        print(
+            f"Specialist tracks: {orchestration.get('success_count', 0)}/{orchestration.get('total_tracks', 0)} succeeded"
+        )
+
     print("Writing reports...")
-    write_reports(output_dir, target_url, pages, scores, stats, issues, visual)
+    artifacts = write_reports(output_dir, target_url, pages, scores, stats, issues, visual, orchestration=orchestration)
     health_score, not_measured = aggregate_health_score(scores)
 
     print(f"Done. Health score: {health_score}/100")
     if not_measured:
         print(f"Not measured: {', '.join(not_measured)}")
-    print(f"Report: {output_dir / 'FULL-AUDIT-REPORT.md'}")
-    print(f"Action plan: {output_dir / 'ACTION-PLAN.md'}")
-    print(f"Summary: {output_dir / 'SUMMARY.json'}")
-    print(f"Issues: {output_dir / 'ISSUES.json'}")
+    print(f"Report: {artifacts['markdown_report']}")
+    print(f"Action plan: {artifacts['action_plan']}")
+    print(f"HTML report: {artifacts['html_report']}")
+    if artifacts.get("pdf_report"):
+        print(f"PDF report: {artifacts['pdf_report']}")
+    else:
+        print(f"PDF report: skipped ({artifacts.get('pdf_reason')})")
+    if artifacts.get("orchestration_summary"):
+        print(f"Orchestration summary: {artifacts['orchestration_summary']}")
+    print(f"Summary: {artifacts['summary_json']}")
+    print(f"Issues: {artifacts['issues_json']}")
     return 0
 
 

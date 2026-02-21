@@ -176,17 +176,17 @@ def main():
         print("=" * 40)
 
         print("\nAbove the Fold:")
-        print(f"  H1 Visible: {'✓' if result['above_fold']['h1_visible'] else '✗'}")
-        print(f"  CTA Visible: {'✓' if result['above_fold']['cta_visible'] else '✗'}")
+        print(f"  H1 Visible: {'YES' if result['above_fold']['h1_visible'] else 'NO'}")
+        print(f"  CTA Visible: {'YES' if result['above_fold']['cta_visible'] else 'NO'}")
         print(f"  Hero Image: {result['above_fold']['hero_image'] or 'None found'}")
 
         print("\nMobile Responsiveness:")
-        print(f"  Viewport Meta: {'✓' if result['mobile']['viewport_meta'] else '✗'}")
-        print(f"  Horizontal Scroll: {'✗ (problem)' if result['mobile']['horizontal_scroll'] else '✓'}")
+        print(f"  Viewport Meta: {'YES' if result['mobile']['viewport_meta'] else 'NO'}")
+        print(f"  Horizontal Scroll: {'YES (problem)' if result['mobile']['horizontal_scroll'] else 'NO'}")
 
         print("\nTypography:")
         print(f"  Base Font Size: {result['fonts']['base_size']}px")
-        print(f"  Readable (≥16px): {'✓' if result['fonts']['readable'] else '✗'}")
+        print(f"  Readable (>=16px): {'YES' if result['fonts']['readable'] else 'NO'}")
 
         if result["error"]:
             print(f"\nError: {result['error']}")

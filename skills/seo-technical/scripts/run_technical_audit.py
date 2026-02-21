@@ -267,6 +267,45 @@ def evaluate_sitemaps(base_url: str, robots_sitemaps: list[str], timeout: int) -
     }
 
 
+def evaluate_indexnow(base_url: str, robots_text: str, timeout: int) -> dict[str, Any]:
+    endpoint = urljoin(base_url, "/indexnow")
+    robots_mentions = "indexnow" in robots_text.lower()
+    probe = try_head(endpoint, timeout)
+    status = probe["status_code"]
+    body = ""
+    body_mentions = False
+
+    # GET fallback for environments where HEAD is blocked or inconclusive.
+    if status is None or status in (400, 401, 403, 405, 422, 200):
+        text_probe = fetch_text(endpoint, timeout)
+        if text_probe["status_code"] is not None:
+            status = text_probe["status_code"]
+        body = (text_probe["text"] or "").lower()
+        body_mentions = "indexnow" in body
+
+    endpoint_signal = status in (202, 204, 405, 422) or (status == 200 and body_mentions)
+    likely_supported = robots_mentions or endpoint_signal
+    possible_supported = not likely_supported and status in (400, 401, 403)
+
+    confidence = "low"
+    if likely_supported and robots_mentions and endpoint_signal:
+        confidence = "high"
+    elif likely_supported:
+        confidence = "medium"
+    elif possible_supported:
+        confidence = "low"
+
+    return {
+        "endpoint_url": endpoint,
+        "endpoint_status_code": status,
+        "robots_mentions_indexnow": robots_mentions,
+        "endpoint_mentions_indexnow": body_mentions,
+        "likely_supported": likely_supported,
+        "possible_support": possible_supported,
+        "confidence": confidence,
+    }
+
+
 def extract_main_text(soup: BeautifulSoup) -> str:
     region = soup.find("main") or soup.find("article") or soup.body or soup
     clone = BeautifulSoup(str(region), "html.parser")
@@ -456,6 +495,14 @@ def compute_scores(data: dict[str, Any]) -> tuple[dict[str, float], float, list[
             "Low",
             "GPTBot blocked but ChatGPT-User not blocked",
             "Training is blocked while ChatGPT browsing access may still occur.",
+        )
+    if not data["indexnow"]["likely_supported"]:
+        crawlability -= 3
+        add_issue(
+            issues,
+            "Low",
+            "IndexNow not detected",
+            "Optional: add IndexNow support for faster recrawl signals on Bing/Yandex/Naver.",
         )
     crawlability = clamp(crawlability, 0, 100)
 
@@ -670,6 +717,15 @@ def write_outputs(output_dir: Path, data: dict[str, Any], scores: dict[str, floa
 - JSON-LD blocks: {data['schema']['block_count']}
 - Schema types: {", ".join(data['schema']['types']) if data['schema']['types'] else "None"}
 
+## IndexNow Readiness (Optional)
+
+- Endpoint: `{data['indexnow']['endpoint_url']}`
+- Endpoint status: `{data['indexnow']['endpoint_status_code']}`
+- Mentioned in robots.txt: `{data['indexnow']['robots_mentions_indexnow']}`
+- Mentioned in endpoint response: `{data['indexnow']['endpoint_mentions_indexnow']}`
+- Likely supported: `{data['indexnow']['likely_supported']}`
+- Confidence: `{data['indexnow']['confidence']}`
+
 ## Prioritized Issues
 
 ### Critical
@@ -719,6 +775,7 @@ def write_outputs(output_dir: Path, data: dict[str, Any], scores: dict[str, floa
                 "signals": {
                     "robots": data["robots"],
                     "sitemap": data["sitemap"],
+                    "indexnow": data["indexnow"],
                     "security_headers_present": data["security_headers_present"],
                     "mobile_probe": data["mobile_probe"],
                     "schema": data["schema"],
@@ -774,6 +831,7 @@ def main() -> int:
     robots_exists = bool(robots_resp["ok"])
     robots_parsed = parse_robots(robots_resp["text"]) if robots_exists else parse_robots("")
     sitemap_state = evaluate_sitemaps(final_url, robots_parsed["sitemaps"], args.timeout)
+    indexnow_state = evaluate_indexnow(final_url, robots_resp["text"] if robots_exists else "", args.timeout)
 
     canonical_tag = soup.find("link", rel="canonical")
     canonical_raw = str(canonical_tag.get("href")).strip() if canonical_tag and canonical_tag.get("href") else None
@@ -819,6 +877,7 @@ def main() -> int:
             "sitemaps": robots_parsed["sitemaps"],
             "ai_policy": robots_parsed["ai_policy"],
         },
+        "indexnow": indexnow_state,
         "sitemap": {
             "exists": sitemap_state["exists"],
             "checked_urls": sitemap_state["checked_urls"],
