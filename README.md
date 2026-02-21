@@ -12,8 +12,6 @@ Codex-first SEO skill suite with deterministic Python runners for repeatable aud
 [![CI](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml/badge.svg)](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Community: [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) *(affiliate link, I may earn a commission if you join).*
-
 ## Why This Exists
 
 `codex-seo` is a full port of `claude-seo` into a Codex-native workflow.
@@ -180,6 +178,13 @@ See `docs/MCP-INTEGRATION.md` for setup examples.
 - [Architecture](docs/ARCHITECTURE.md)
 - [MCP Integration](docs/MCP-INTEGRATION.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+
+## Community (Optional)
+
+All core functionality in this repository is open source and does not require any paid membership.
+
+If you want to join the broader community:
+- [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) *(affiliate link, I may earn a commission if you join).*
 
 ## License
 
