@@ -30,8 +30,26 @@ function Invoke-External {
         [switch]$Quiet
     )
 
-    $output = & $Exe @Args 2>&1
-    $exitCode = $LASTEXITCODE
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
+    try {
+        $process = Start-Process `
+            -FilePath $Exe `
+            -ArgumentList $Args `
+            -NoNewWindow `
+            -Wait `
+            -PassThru `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+
+        $stdout = if (Test-Path $stdoutPath) { Get-Content -Path $stdoutPath -Raw } else { "" }
+        $stderr = if (Test-Path $stderrPath) { Get-Content -Path $stderrPath -Raw } else { "" }
+        $combined = @($stdout, $stderr) -join ""
+        $output = if ([string]::IsNullOrWhiteSpace($combined)) { @() } else { $combined -split "`r?`n" }
+        $exitCode = $process.ExitCode
+    } finally {
+        Remove-Item -Force $stdoutPath, $stderrPath -ErrorAction SilentlyContinue
+    }
 
     if (-not $Quiet -and $null -ne $output -and $output.Count -gt 0) {
         $output | ForEach-Object { Write-Host $_ }
