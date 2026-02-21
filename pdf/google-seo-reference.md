@@ -1,7 +1,7 @@
 <!-- Updated: 2026-02-07 -->
 # Google SEO Quick Reference (February 2026)
 
-Concise reference guide for subagents. Summarizes key Google Search concepts,
+Concise reference guide for multi-agents. Summarizes key Google Search concepts,
 requirements, and best practices. Not a reproduction of Google's documentation —
 see Official Documentation Links at the bottom for full details.
 

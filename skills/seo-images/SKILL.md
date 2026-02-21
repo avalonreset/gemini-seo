@@ -166,3 +166,4 @@ Sorted by file size impact (largest savings first):
 3. Add dimensions to X images
 4. Enable lazy loading on X below-fold images
 5. Compress X oversized images
+

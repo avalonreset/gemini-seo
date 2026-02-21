@@ -24,13 +24,13 @@ allowed-tools:
 
 Comprehensive SEO analysis across all industries (SaaS, local services,
 e-commerce, publishers, agencies). Orchestrates 12 specialized sub-skills
-and 6 subagents.
+and 6 multi-agents.
 
 ## Quick Reference
 
 | Command | What it does |
 |---------|-------------|
-| `/seo audit <url>` | Full website audit with parallel subagent delegation |
+| `/seo audit <url>` | Full website audit with parallel multi-agent delegation |
 | `/seo page <url>` | Deep single-page analysis |
 | `/seo sitemap <url or generate>` | Analyze or generate XML sitemaps |
 | `/seo schema <url>` | Detect, validate, and generate Schema.org markup |
@@ -45,14 +45,11 @@ and 6 subagents.
 
 ## Orchestration Logic
 
-When the user invokes `/seo audit`, delegate to subagents in parallel:
+When the user invokes `/seo audit`, delegate to multi-agents in parallel:
 1. Detect business type (SaaS, local, ecommerce, publisher, agency, other)
-2. Spawn subagents: seo-technical, seo-content, seo-schema, seo-sitemap, seo-performance, seo-visual
+2. Spawn multi-agents: seo-technical, seo-content, seo-schema, seo-sitemap, seo-performance, seo-visual
 3. Collect results and generate unified report with SEO Health Score (0-100)
 4. Create prioritized action plan (Critical → High → Medium → Low)
-
-Codex mapping: implement this subagent delegation with `spawn_agent` + `wait` in parallel.
-Chat-mode rule: in Codex chat, this multi-agent delegation path is the default for `/seo audit`. Do not fallback to deterministic runners unless the user explicitly requests CLI/reproducible runner mode.
 
 For individual commands, load the relevant sub-skill directly.
 
@@ -121,7 +118,7 @@ This skill orchestrates 12 specialized sub-skills:
 11. **seo-competitor-pages** — Competitor comparison page generation
 12. **seo-hreflang** — Hreflang/i18n SEO audit and generation
 
-## Subagents
+## multi-agents
 
 For parallel analysis during audits:
 - `seo-technical` — Crawlability, indexability, security, CWV
@@ -130,3 +127,4 @@ For parallel analysis during audits:
 - `seo-sitemap` — Structure, coverage, quality gates
 - `seo-performance` — Core Web Vitals measurement
 - `seo-visual` — Screenshots, mobile testing, above-fold
+

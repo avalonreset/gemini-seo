@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **YAML frontmatter parsing**: Removed HTML comments before `---` delimiter in 8 files (skills: seo-content, seo-images, seo-programmatic, seo-schema, seo-technical; agents: seo-content, seo-performance, seo-technical). Thanks @kylewhirl for identifying this in the codex-seo fork.
-- **Windows installer**: Merged @kfrancis improvements — `python -m pip`, `py -3` launcher fallback, requirements.txt persistence, non-fatal subagent copy, better error diagnostics (PR #6)
+- **Windows installer**: Merged @kfrancis improvements — `python -m pip`, `py -3` launcher fallback, requirements.txt persistence, non-fatal multi-agent copy, better error diagnostics (PR #6)
 - **requirements.txt missing after install**: Now copied to skill directory so users can retry (#1)
 
 ### Changed
@@ -97,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial upstream release of Claude SEO
 - 9 specialized skills: audit, page, sitemap, schema, images, technical, content, geo, plan
-- 6 subagents for parallel analysis: seo-technical, seo-content, seo-schema, seo-sitemap, seo-performance, seo-visual
+- 6 multi-agents for parallel analysis: seo-technical, seo-content, seo-schema, seo-sitemap, seo-performance, seo-visual
 - Industry templates: SaaS, local service, e-commerce, publisher, agency, generic
 - Schema library with deprecation tracking:
   - HowTo schema marked deprecated (September 2023)
@@ -120,5 +120,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upstream architecture based on Anthropic's Claude Code skill specification (February 2026)
 - Standard directory layout: `scripts/`, `references/`, `assets/`
 - Valid hook matchers (tool name only, no argument patterns)
-- Correct subagent frontmatter fields (name, description, tools)
+- Correct multi-agent frontmatter fields (name, description, tools)
 - Upstream CLI command was `claude` (not `claude-code`)

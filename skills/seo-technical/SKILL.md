@@ -146,3 +146,4 @@ Google updated its JavaScript SEO documentation in December 2025 with critical c
 ### High Priority (fix within 1 week)
 ### Medium Priority (fix within 1 month)
 ### Low Priority (backlog)
+

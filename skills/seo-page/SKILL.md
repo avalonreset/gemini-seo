@@ -72,3 +72,4 @@ Specific, actionable improvements with expected impact
 
 ### Schema Suggestions
 Ready-to-use JSON-LD code for detected opportunities
+

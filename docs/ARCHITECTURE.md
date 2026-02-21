@@ -63,7 +63,7 @@ Each skill has a runner script to support reproducible, non-chat execution:
 
 ### Agent Profiles
 
-Files in `agents/` are specialist prompts for decomposition patterns. They are optional and can be used as reference guidance when spawning focused sub-agents.
+Files in `agents/` are specialist prompts for decomposition patterns. They are optional and can be used as reference guidance when spawning focused multi-agents.
 
 ### Reference Files
 

@@ -104,3 +104,4 @@ Load from `assets/` directory:
 - Resource requirements defined
 - Dependencies identified
 - Risk mitigation strategies
+

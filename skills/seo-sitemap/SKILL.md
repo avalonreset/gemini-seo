@@ -102,3 +102,4 @@ description: >
 - `sitemap.xml` (or split files with index)
 - `STRUCTURE.md` — site architecture documentation
 - URL count and organization summary
+

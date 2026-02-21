@@ -126,10 +126,10 @@ Check `robots.txt` for these AI crawlers:
 | GPTBot | OpenAI | ChatGPT web search |
 | OAI-SearchBot | OpenAI | OpenAI search features |
 | ChatGPT-User | OpenAI | ChatGPT browsing |
-| ClaudeBot | Anthropic | Claude web features |
+| ClaudeBot | Anthropic | Codex web features |
 | PerplexityBot | Perplexity | Perplexity AI search |
 | CCBot | Common Crawl | Training data (often blocked) |
-| anthropic-ai | Anthropic | Claude training |
+| anthropic-ai | Anthropic | Codex training |
 | Bytespider | ByteDance | TikTok/Douyin AI |
 | cohere-ai | Cohere | Cohere models |
 
@@ -229,3 +229,4 @@ Generate `GEO-ANALYSIS.md` with:
 3. Establish YouTube channel with content mentions
 4. Implement comprehensive entity linking (sameAs across platforms)
 5. Develop unique tools or calculators
+

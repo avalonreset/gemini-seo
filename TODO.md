@@ -20,8 +20,8 @@
 - [ ] **Opencode compatibility** (Priority: Low, from @Ehtz #4)
   Adapt skill architecture for Opencode. @kylewhirl already ported to OpenAI Codex.
 
-- [ ] **Subagent timeout/compact handling** (Priority: Medium, from @JawandS #3)
-  Primary agent sometimes terminates before subagents finish. Consider encouraging subagents
+- [ ] **Multi-agent timeout/compact handling** (Priority: Medium, from @JawandS #3)
+  Primary agent sometimes terminates before multi-agents finish. Consider encouraging multi-agents
   to compact context and adding explicit wait logic.
 
 - [ ] **Native Chrome tools vs Playwright** (Priority: Medium, from @artyomsv #7, @btafoya PR #8)

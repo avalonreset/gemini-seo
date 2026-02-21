@@ -1,7 +1,7 @@
 ---
 name: seo-audit
 description: >
-  Full website SEO audit with parallel subagent delegation. Crawls up to 500
+  Full website SEO audit with parallel multi-agent delegation. Crawls up to 500
   pages, detects business type, delegates to 6 specialists, generates health
   score. Use when user says "audit", "full SEO check", "analyze my site",
   or "website health check".
@@ -14,16 +14,13 @@ description: >
 1. **Fetch homepage** — use `scripts/fetch_page.py` to retrieve HTML
 2. **Detect business type** — analyze homepage signals per seo orchestrator
 3. **Crawl site** — follow internal links up to 500 pages, respect robots.txt
-4. **Delegate to subagents** (if available, otherwise run inline sequentially):
+4. **Delegate to multi-agents** (if available, otherwise run inline sequentially):
    - `seo-technical` — robots.txt, sitemaps, canonicals, Core Web Vitals, security headers
    - `seo-content` — E-E-A-T, readability, thin content, AI citation readiness
    - `seo-schema` — detection, validation, generation recommendations
    - `seo-sitemap` — structure analysis, quality gates, missing pages
    - `seo-performance` — LCP, INP, CLS measurements
    - `seo-visual` — screenshots, mobile testing, above-fold analysis
-   - Codex mapping: use parallel `spawn_agent` runs for these specialists
-   - Codex prerequisite: in Codex chat, run `/experimental` and enable **Multi-agent**
-   - Chat-mode rule: when running inside Codex chat, prefer this `spawn_agent` orchestration path. Use `scripts/run_audit.py` only when the user explicitly asks for deterministic CLI execution.
 5. **Score** — aggregate into SEO Health Score (0-100)
 6. **Report** — generate prioritized action plan
 
@@ -108,3 +105,4 @@ Delay between requests: 1 second
 - **High**: Significantly impacts rankings (fix within 1 week)
 - **Medium**: Optimization opportunity (fix within 1 month)
 - **Low**: Nice to have (backlog)
+
