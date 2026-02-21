@@ -180,6 +180,8 @@ See `docs/MCP-INTEGRATION.md` for setup examples.
 - [Architecture](docs/ARCHITECTURE.md)
 - [MCP Integration](docs/MCP-INTEGRATION.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
 - [Legal Notice](LEGAL-NOTICE.md)
 
 ## Community (Optional)
