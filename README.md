@@ -67,8 +67,6 @@ For authentic `/seo audit` behavior in Codex chat, enable Codex experimental mul
 
 Without this toggle enabled, Codex chat may fall back to non-parallel behavior and produce less complete delegation patterns.
 
-Deterministic CLI runners still work without this toggle (for example `skills/seo-audit/scripts/run_audit.py`), because they execute local specialist tracks directly.
-
 ## Installation
 
 ### One-command install (Unix/macOS/Linux)
@@ -119,23 +117,12 @@ Expected audit behavior:
 2. delegates to specialist agents in parallel (when Codex multi-agent is enabled)
 3. merges findings into `FULL-AUDIT-REPORT.md` and `ACTION-PLAN.md` (plus HTML/PDF artifacts in runner mode)
 
-## Optional CLI Runners
-
-Script runners are kept for local reproducibility and CI workflows, but they are not the primary skill behavior path.
-
-Example:
-
-```bash
-python skills/seo-audit/scripts/run_audit.py https://example.com --output-dir out/audit
-```
-
 ## Architecture
 
 ```text
 seo/                            # Orchestrator skill + references
 skills/seo-*/                   # primary skills + specialist audit runners
 agents/seo-*.md                 # Specialist agent profiles
-skills/*/scripts/run_*.py       # Optional CLI runners
 schema/templates.json           # Schema templates
 ```
 

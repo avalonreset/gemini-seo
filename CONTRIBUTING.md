@@ -28,13 +28,6 @@ bash -n hooks/pre-commit-seo-check.sh
 python -m py_compile hooks/validate-schema.py scripts/fetch_page.py
 ```
 
-For runner scripts, make sure `--help` works:
-
-```bash
-python skills/seo-audit/scripts/run_audit.py --help
-python skills/seo-page/scripts/run_page_audit.py --help
-```
-
 ## Pull Request Checklist
 
 - Explain the problem and the fix.
