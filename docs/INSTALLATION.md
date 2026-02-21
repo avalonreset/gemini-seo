@@ -2,126 +2,161 @@
 
 ## Prerequisites
 
-- Python 3.8+ with pip
-- Git
-- Codex CLI/runtime configured on your machine
+- **Python 3.8+** with pip
+- **Git** for cloning the repository
+- **Codex CLI** installed and configured
 
 Optional:
-- Playwright for visual checks (`python -m playwright install chromium`)
+- **Playwright** for screenshot capabilities
 
-## Install Repository
+## Quick Install
 
-```bash
-git clone https://github.com/avalonreset/codex-seo.git
-cd codex-seo
-```
-
-## Install Python Dependencies
+### Unix/macOS/Linux
 
 ```bash
-pip install -r requirements.txt
-```
-
-For isolated installs, use a virtual environment:
-
-```bash
-python -m venv .venv
-# Linux/macOS
-source .venv/bin/activate
-# Windows PowerShell
-# .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-## Install Skills Into Codex
-
-### Linux/macOS
-
-```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-mkdir -p "$CODEX_HOME/skills/seo"
-cp -r seo/* "$CODEX_HOME/skills/seo/"
-
-for d in skills/*; do
-  name="$(basename "$d")"
-  mkdir -p "$CODEX_HOME/skills/$name"
-  cp -r "$d/"* "$CODEX_HOME/skills/$name/"
-done
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { "$env:USERPROFILE\\.codex" }
-New-Item -ItemType Directory -Force -Path "$codexHome\\skills\\seo" | Out-Null
-Copy-Item -Recurse -Force "seo\\*" "$codexHome\\skills\\seo\\"
-Get-ChildItem -Directory skills | ForEach-Object {
-  $target = "$codexHome\\skills\\$($_.Name)"
-  New-Item -ItemType Directory -Force -Path $target | Out-Null
-  Copy-Item -Recurse -Force "$($_.FullName)\\*" $target
-}
+irm https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/install.ps1 | iex
 ```
 
-## Optional: Install Agent Profiles
+## Manual Installation
 
-If you want local reference prompts for specialist agents:
+1. **Clone the repository**
 
 ```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-mkdir -p "$CODEX_HOME/agents"
-cp -r agents/*.md "$CODEX_HOME/agents/"
+git clone https://github.com/AgriciDaniel/Codex-seo.git
+cd Codex-seo
 ```
 
-PowerShell:
+2. **Run the installer**
 
-```powershell
-$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { "$env:USERPROFILE\\.codex" }
-New-Item -ItemType Directory -Force -Path "$codexHome\\agents" | Out-Null
-Copy-Item -Force "agents\\*.md" "$codexHome\\agents\\"
+```bash
+./install.sh
 ```
+
+3. **Install Python dependencies** (if not done automatically)
+
+The installer creates a venv at `~/.Codex/skills/seo/.venv/`. If that fails, install manually:
+
+```bash
+# Option A: Use the venv
+~/.Codex/skills/seo/.venv/bin/pip install -r ~/.Codex/skills/seo/requirements.txt
+
+# Option B: User-level install
+pip install --user -r ~/.Codex/skills/seo/requirements.txt
+```
+
+4. **Install Playwright browsers** (optional, for visual analysis)
+
+```bash
+pip install playwright
+playwright install chromium
+```
+
+Playwright is optional — without it, visual analysis uses WebFetch as a fallback.
+
+## Installation Paths
+
+The installer copies files to:
+
+| Component | Path |
+|-----------|------|
+| Main skill | `~/.Codex/skills/seo/` |
+| Sub-skills | `~/.Codex/skills/seo-*/` |
+| multi-agents | `~/.Codex/agents/seo-*.md` |
 
 ## Verify Installation
 
-1. Confirm skills are present:
+1. Start Codex:
 
 ```bash
-ls "$CODEX_HOME/skills/seo/SKILL.md"
-ls "$CODEX_HOME/skills/seo-audit/SKILL.md"
+Codex
 ```
 
-2. Run a deterministic smoke check:
+2. Check that the skill is loaded:
+
+```
+/seo
+```
+
+You should see a help message or prompt for a URL.
+
+## Uninstallation
 
 ```bash
-python skills/seo-audit/scripts/run_audit.py --help
-python skills/seo-page/scripts/run_page_audit.py --help
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/uninstall.sh | bash
 ```
 
-3. Start Codex and ask for a workflow:
-
-- "Run a technical SEO audit for https://example.com"
-- "Generate hreflang tags from this mapping JSON"
-
-## Uninstall
-
-Remove installed skill directories from `$CODEX_HOME/skills`:
+Or manually:
 
 ```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-rm -rf "$CODEX_HOME/skills/seo"
-for skill in seo-audit seo-competitor-pages seo-content seo-geo seo-hreflang seo-images seo-page seo-plan seo-programmatic seo-schema seo-sitemap seo-technical; do
-  rm -rf "$CODEX_HOME/skills/$skill"
-done
+rm -rf ~/.Codex/skills/seo
+rm -rf ~/.Codex/skills/seo-audit
+rm -rf ~/.Codex/skills/seo-competitor-pages
+rm -rf ~/.Codex/skills/seo-content
+rm -rf ~/.Codex/skills/seo-geo
+rm -rf ~/.Codex/skills/seo-hreflang
+rm -rf ~/.Codex/skills/seo-images
+rm -rf ~/.Codex/skills/seo-page
+rm -rf ~/.Codex/skills/seo-plan
+rm -rf ~/.Codex/skills/seo-programmatic
+rm -rf ~/.Codex/skills/seo-schema
+rm -rf ~/.Codex/skills/seo-sitemap
+rm -rf ~/.Codex/skills/seo-technical
+rm -f ~/.Codex/agents/seo-*.md
 ```
 
-PowerShell:
+## Upgrading
 
-```powershell
-$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { "$env:USERPROFILE\\.codex" }
-Remove-Item -Recurse -Force "$codexHome\\skills\\seo" -ErrorAction SilentlyContinue
-@(
-  "seo-audit","seo-competitor-pages","seo-content","seo-geo","seo-hreflang","seo-images",
-  "seo-page","seo-plan","seo-programmatic","seo-schema","seo-sitemap","seo-technical"
-) | ForEach-Object {
-  Remove-Item -Recurse -Force "$codexHome\\skills\\$_" -ErrorAction SilentlyContinue
-}
+To upgrade to the latest version:
+
+```bash
+# Uninstall current version
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/uninstall.sh | bash
+
+# Install new version
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/install.sh | bash
 ```
+
+## Troubleshooting
+
+### "Skill not found" error
+
+Ensure the skill is installed in the correct location:
+
+```bash
+ls ~/.Codex/skills/seo/SKILL.md
+```
+
+If the file doesn't exist, re-run the installer.
+
+### Python dependency errors
+
+Install dependencies manually:
+
+```bash
+pip install beautifulsoup4 requests lxml playwright Pillow urllib3 validators
+```
+
+### Playwright screenshot errors
+
+Install Chromium browser:
+
+```bash
+playwright install chromium
+```
+
+### Permission errors on Unix
+
+Make sure scripts are executable:
+
+```bash
+chmod +x ~/.Codex/skills/seo/scripts/*.py
+chmod +x ~/.Codex/skills/seo/hooks/*.py
+chmod +x ~/.Codex/skills/seo/hooks/*.sh
+```
+

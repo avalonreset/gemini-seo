@@ -1,127 +1,237 @@
 # Troubleshooting
 
-## Skill Not Loading in Codex
+## Common Issues
 
-**Symptom:** Codex does not pick the expected SEO skill.
+### Skill Not Loading
 
-### Checks
+**Symptom:** `/seo` command not recognized
 
-1. Verify skill files exist under your Codex home:
+**Solutions:**
 
+1. Verify installation:
 ```bash
-export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-ls "$CODEX_HOME/skills/seo/SKILL.md"
-ls "$CODEX_HOME/skills/seo-audit/SKILL.md"
+ls ~/.Codex/skills/seo/SKILL.md
 ```
 
-2. Ensure files were copied recursively (including `scripts/` and `assets/` directories).
-
-3. Restart your Codex session after installing or updating skills.
-
-## Python Dependency Errors
-
-**Symptom:** `ModuleNotFoundError` (for example `requests`, `bs4`, `lxml`).
-
-### Fix
-
+2. Check SKILL.md has proper frontmatter:
 ```bash
-pip install -r requirements.txt
+head -5 ~/.Codex/skills/seo/SKILL.md
+```
+Should start with `---` followed by YAML.
+
+3. Restart Codex:
+```bash
+Codex
 ```
 
-If using a virtual environment:
-
+4. Re-run installer:
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/install.sh | bash
 ```
 
-## Playwright Errors
+---
 
-**Symptom:** Browser executable missing or screenshot/visual checks fail.
+### Python Dependency Errors
 
-### Fix
+**Symptom:** `ModuleNotFoundError: No module named 'requests'`
 
+**Solution:**
+
+As of v1.2.0, dependencies are installed in a venv. Try:
+
+```bash
+# Use the venv pip
+~/.Codex/skills/seo/.venv/bin/pip install -r ~/.Codex/skills/seo/requirements.txt
+```
+
+If the venv doesn't exist, install with `--user`:
+```bash
+pip install --user -r ~/.Codex/skills/seo/requirements.txt
+```
+
+Or install individually:
+```bash
+pip install --user beautifulsoup4 requests lxml playwright Pillow urllib3 validators
+```
+
+### requirements.txt Not Found
+
+**Symptom:** `No such file: requirements.txt` after install
+
+**Solution:** As of v1.2.0, requirements.txt is copied to the skill directory:
+
+```bash
+ls ~/.Codex/skills/seo/requirements.txt
+```
+
+If missing, download it directly:
+```bash
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/requirements.txt \
+  -o ~/.Codex/skills/seo/requirements.txt
+```
+
+### Windows Python Detection Issues
+
+**Symptom:** `python is not recognized` or `pip points to wrong Python`
+
+**Solution (v1.2.0+):** The Windows installer now tries both `python` and `py -3`. If both fail:
+
+1. Install Python from [python.org](https://python.org) and check "Add to PATH"
+2. Or use the Windows launcher: `py -3 -m pip install -r requirements.txt`
+3. Use `python -m pip` instead of bare `pip`
+
+---
+
+### Playwright Screenshot Errors
+
+**Symptom:** `playwright._impl._errors.Error: Executable doesn't exist`
+
+**Solution:**
+```bash
+playwright install chromium
+```
+
+If that fails:
 ```bash
 pip install playwright
 python -m playwright install chromium
 ```
 
-If unavailable, use `--visual off` where supported.
+---
 
-## Runner Command Fails
+### Permission Denied Errors
 
-**Symptom:** Non-zero exit code from a `run_*.py` script.
+**Symptom:** `Permission denied` when running scripts
 
-### Checks
-
-1. Confirm CLI syntax:
-
+**Solution:**
 ```bash
-python skills/seo-audit/scripts/run_audit.py --help
+chmod +x ~/.Codex/skills/seo/scripts/*.py
+chmod +x ~/.Codex/skills/seo/hooks/*.py
+chmod +x ~/.Codex/skills/seo/hooks/*.sh
 ```
 
-2. Use explicit output directory:
+---
 
+### Hook Not Triggering
+
+**Symptom:** Schema validation hook not running
+
+**Check:**
+
+1. Verify hook is in settings:
 ```bash
-python skills/seo-page/scripts/run_page_audit.py https://example.com --output-dir out/page
+cat ~/.Codex/settings.json
 ```
 
-3. For URL-based scans, test network and certificate trust:
-
-```bash
-python -c "import requests; print(requests.get('https://example.com', timeout=10).status_code)"
+2. Ensure correct path:
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.Codex/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
+            "exitCodes": { "2": "block" }
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
 
-## SSL Certificate Verification Errors
+3. Test hook directly:
+```bash
+python3 ~/.Codex/skills/seo/hooks/validate-schema.py test.html
+```
 
-**Symptom:** `CERTIFICATE_VERIFY_FAILED`.
+---
 
-### Notes
+### multi-agent Not Found
 
-- This is usually local trust-store configuration, proxy interception, or enterprise TLS middleware.
-- It is not typically a skill logic bug.
+**Symptom:** `Agent 'seo-technical' not found`
 
-### Fix paths
+**Solution:**
 
-1. Update your OS/root certificate store.
-2. Ensure Python uses current cert bundles.
-3. Re-test with a known public domain after trust-store fixes.
+1. Verify agent files exist:
+```bash
+ls ~/.Codex/agents/seo-*.md
+```
 
-## "URL blocked as non-public" Errors
+2. Check agent frontmatter:
+```bash
+head -5 ~/.Codex/agents/seo-technical.md
+```
 
-**Symptom:** Runner refuses localhost/private/reserved hosts.
+3. Re-install agents:
+```bash
+cp /path/to/Codex-seo/agents/*.md ~/.Codex/agents/
+```
 
-### Cause
+---
 
-Security guardrails intentionally block SSRF-style targets.
+### Timeout Errors
 
-### Fix
+**Symptom:** `Request timed out after 30 seconds`
 
-- Use a public `http` or `https` URL.
-- For local testing, use `--html-file` mode where available (`seo-geo`, `seo-images`, `seo-schema`, `seo-hreflang`, `seo-sitemap`).
+**Solutions:**
 
-## Slow Full Audits
+1. The target site may be slow — try again
+2. Increase timeout in script calls
+3. Check your network connection
+4. Some sites block automated requests
 
-**Symptom:** Full audit takes longer than expected.
+---
 
-### Notes
+### Schema Validation False Positives
 
-- Large sites increase crawl duration.
-- Optional visual checks add runtime cost.
-- Network latency and origin throttling affect total runtime.
+**Symptom:** Hook blocks valid schema
 
-### Fast-path options
+**Check:**
 
-1. Lower crawl size (`--max-pages` on full audit)
-2. Disable visuals (`--visual off`)
-3. Run targeted skills first (`seo-page`, `seo-technical`, `seo-content`)
+1. Ensure placeholders are replaced
+2. Verify @context is `https://schema.org`
+3. Check for deprecated types (HowTo, SpecialAnnouncement)
+4. Validate at [Google's Rich Results Test](https://search.google.com/test/rich-results)
 
-## Still Stuck
+---
 
-Provide:
+### Slow Audit Performance
 
-1. Exact command used
-2. Full stderr output
-3. Your Python version (`python --version`)
-4. Whether you ran inside a virtual environment
+**Symptom:** Full audit takes too long
+
+**Solutions:**
+
+1. Audit crawls up to 500 pages — large sites take time
+2. multi-agents run in parallel to speed up analysis
+3. For faster checks, use `/seo page` on specific URLs
+4. Check if site has slow response times
+
+---
+
+## Getting Help
+
+1. **Check the docs:** Review [COMMANDS.md](COMMANDS.md) and [ARCHITECTURE.md](ARCHITECTURE.md)
+
+2. **GitHub Issues:** Report bugs at the repository
+
+3. **Logs:** Check Codex's output for error details
+
+## Debug Mode
+
+To see detailed output, check Codex's internal logs or run scripts directly:
+
+```bash
+# Test fetch
+python3 ~/.Codex/skills/seo/scripts/fetch_page.py https://example.com
+
+# Test parse
+python3 ~/.Codex/skills/seo/scripts/parse_html.py page.html --json
+
+# Test screenshot
+python3 ~/.Codex/skills/seo/scripts/capture_screenshot.py https://example.com
+```
+

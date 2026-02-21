@@ -2,124 +2,193 @@
 
 ## Overview
 
-Codex SEO uses a modular skill architecture:
+Codex SEO follows Anthropic's official Codex skill specification with a modular, multi-skill architecture.
 
-- `seo/` is the orchestrator skill (routing + shared references)
-- `skills/seo-*` contains task skills plus audit specialist runners (including `seo-performance` and `seo-visual`)
-- each skill has a deterministic Python runner in `skills/*/scripts/`
-- optional specialist agent profiles live in `agents/`
+## Directory Structure
 
-## Repository Layout
-
-```text
-codex-seo/
-├── seo/
-│   ├── SKILL.md
-│   └── references/
-│       ├── cwv-thresholds.md
-│       ├── schema-types.md
-│       ├── eeat-framework.md
-│       └── quality-gates.md
+```
+~/.Codex/
 ├── skills/
-│   ├── seo-audit/
-│   │   ├── SKILL.md
-│   │   └── scripts/run_audit.py
-│   ├── seo-page/
-│   ├── seo-technical/
-│   ├── seo-content/
-│   ├── seo-schema/
-│   ├── seo-images/
-│   ├── seo-sitemap/
-│   ├── seo-geo/
-│   ├── seo-performance/
-│   ├── seo-visual/
-│   ├── seo-plan/
-│   ├── seo-programmatic/
-│   ├── seo-competitor-pages/
-│   └── seo-hreflang/
-├── agents/
-├── schema/
-└── docs/
+│   ├── seo/              # Main orchestrator skill
+│   │   ├── SKILL.md          # Entry point with routing logic
+│   │   └── references/       # On-demand reference files
+│   │       ├── cwv-thresholds.md
+│   │       ├── schema-types.md
+│   │       ├── eeat-framework.md
+│   │       └── quality-gates.md
+│   │
+│   ├── seo-audit/            # Full site audit
+│   ├── seo-competitor-pages/ # Competitor comparison pages
+│   ├── seo-content/          # E-E-A-T analysis
+│   ├── seo-geo/              # AI search optimization
+│   ├── seo-hreflang/         # Hreflang/i18n SEO
+│   ├── seo-images/           # Image optimization
+│   ├── seo-page/             # Single page analysis
+│   ├── seo-plan/             # Strategic planning
+│   │   └── assets/           # Industry templates
+│   ├── seo-programmatic/     # Programmatic SEO
+│   ├── seo-schema/           # Schema markup
+│   ├── seo-sitemap/          # Sitemap analysis/generation
+│   └── seo-technical/        # Technical SEO
+│
+└── agents/
+    ├── seo-technical.md      # Technical SEO specialist
+    ├── seo-content.md        # Content quality reviewer
+    ├── seo-schema.md         # Schema markup expert
+    ├── seo-sitemap.md        # Sitemap architect
+    ├── seo-performance.md    # Performance analyzer
+    └── seo-visual.md         # Visual analyzer
 ```
 
 ## Component Types
 
 ### Skills
 
-Each skill is a `SKILL.md` instruction package with:
+Skills are markdown files with YAML frontmatter that define capabilities and instructions.
 
-- activation description
-- workflow steps
-- guardrails
-- deterministic runner reference
+**SKILL.md Format:**
+```yaml
+---
+name: skill-name
+description: >
+  When to use this skill. Include activation keywords
+  and concrete use cases.
+---
 
-### Deterministic Runners
+# Skill Title
 
-Each skill has a runner script to support reproducible, non-chat execution:
+Instructions and documentation...
+```
 
-- same input schema every run
-- stable output artifact set
-- easier CI integration and auditing
+### multi-agents
 
-### Agent Profiles
+multi-agents are specialized workers that can be delegated tasks. They have their own context and tools.
 
-Files in `agents/` are specialist prompts for decomposition patterns. They are optional and can be used as reference guidance when spawning focused multi-agents.
+**Agent Format:**
+```yaml
+---
+name: agent-name
+description: What this agent does.
+tools: Read, Bash, Write, Glob, Grep
+---
+
+Instructions for the agent...
+```
 
 ### Reference Files
 
-Reference docs under `seo/references/` and `skills/*/assets/` provide static SEO frameworks and templates loaded only when needed.
+Reference files contain static data loaded on-demand to avoid bloating the main skill.
 
-## Execution Model
+## Orchestration Flow
 
-### Skill-Driven Mode (Codex)
+### Full Audit (`/seo audit`)
 
-1. User asks for an SEO task in natural language.
-2. Codex selects the relevant skill by intent.
-3. Skill workflow executes with guardrails.
-4. For `/seo audit`, Codex should prefer parallel `spawn_agent` specialist execution.
-5. Multi-agent prerequisite in Codex chat: run `/experimental` and enable **Multi-agent**.
-6. Runner scripts are used when deterministic local/CI output is explicitly requested.
+```
+User Request
+    │
+    ▼
+┌─────────────────┐
+│   seo       │  ← Main orchestrator
+│   (SKILL.md)    │
+└────────┬────────┘
+         │
+         │  Detects business type
+         │  Spawns multi-agents in parallel
+         │
+    ┌────┴────┬────────┬────────┬────────┬────────┐
+    ▼         ▼        ▼        ▼        ▼        ▼
+┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐
+│tech   │ │content│ │schema │ │sitemap│ │perf   │ │visual │
+│agent  │ │agent  │ │agent  │ │agent  │ │agent  │ │agent  │
+└───┬───┘ └───┬───┘ └───┬───┘ └───┬───┘ └───┬───┘ └───┬───┘
+    │         │        │        │        │        │
+    └─────────┴────────┴────┬───┴────────┴────────┘
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │  Aggregate    │
+                    │  Results      │
+                    └───────┬───────┘
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │  Generate     │
+                    │  Report       │
+                    └───────────────┘
+```
 
-### Runner Mode (Direct CLI)
+### Individual Command
 
-1. Call `python skills/<skill>/scripts/run_*.py ...`.
-2. Script validates input and safety constraints.
-3. Script emits report artifacts into `--output-dir`.
+```
+User Request (e.g., /seo page)
+    │
+    ▼
+┌─────────────────┐
+│   seo       │  ← Routes to sub-skill
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   seo-page      │  ← Sub-skill handles directly
+│   (SKILL.md)    │
+└─────────────────┘
+```
 
 ## Design Principles
 
-1. Progressive disclosure:
-   - concise top-level orchestration
-   - deep guidance in specialized skills
-2. Deterministic first:
-   - scripts produce stable outputs for QA/review
-3. Safety guardrails:
-   - URL normalization, scope checks, and public-target validation
-4. Domain quality controls:
-   - CWV thresholds, schema deprecations, location-page gates, E-E-A-T checks
+### 1. Progressive Disclosure
 
-## Naming Conventions
+- Main SKILL.md is concise (<200 lines)
+- Reference files loaded on-demand
+- Detailed instructions in sub-skills
+
+### 2. Parallel Processing
+
+- multi-agents run concurrently during audits
+- Independent analyses don't block each other
+- Results aggregated after all complete
+
+### 3. Quality Gates
+
+- Built-in thresholds prevent bad recommendations
+- Location page limits (30 warning, 50 hard stop)
+- Schema deprecation awareness
+- FID → INP replacement enforced
+
+### 4. Industry Awareness
+
+- Templates for different business types
+- Automatic detection from homepage signals
+- Tailored recommendations per industry
+
+## File Naming Conventions
 
 | Type | Pattern | Example |
-|---|---|---|
-| Skill | `skills/seo-{name}/SKILL.md` | `skills/seo-audit/SKILL.md` |
-| Runner | `skills/seo-{name}/scripts/run_*.py` | `skills/seo-audit/scripts/run_audit.py` |
-| Agent profile | `agents/seo-{name}.md` | `agents/seo-technical.md` |
-| Reference | `seo/references/{topic}.md` | `seo/references/cwv-thresholds.md` |
-| Template | `skills/seo-plan/assets/{industry}.md` | `skills/seo-plan/assets/saas.md` |
+|------|---------|---------|
+| Skill | `seo-{name}/SKILL.md` | `seo-audit/SKILL.md` |
+| Agent | `seo-{name}.md` | `seo-technical.md` |
+| Reference | `{topic}.md` | `cwv-thresholds.md` |
+| Script | `{action}_{target}.py` | `fetch_page.py` |
+| Template | `{industry}.md` | `saas.md` |
 
-## Extending the System
+## Extension Points
 
-### Add a New Skill
+### Adding a New Sub-Skill
 
-1. Create `skills/seo-new/SKILL.md`
-2. Add `skills/seo-new/scripts/run_new.py`
-3. Add `skills/seo-new/requirements.txt` (if needed)
-4. Update `seo/SKILL.md` routing references
-5. Add documentation entry in `docs/COMMANDS.md`
+1. Create `skills/seo-newskill/SKILL.md`
+2. Add YAML frontmatter with name and description
+3. Write skill instructions
+4. Update main `seo/SKILL.md` to route to new skill
 
-### Add New Reference Data
+### Adding a New multi-agent
 
-1. Add file under `seo/references/` or `skills/<skill>/assets/`
-2. Reference it from the relevant `SKILL.md`
-3. Keep files focused and load-on-demand
+1. Create `agents/seo-newagent.md`
+2. Add YAML frontmatter with name, description, tools
+3. Write agent instructions
+4. Reference from relevant skills
+
+### Adding a New Reference File
+
+1. Create file in appropriate `references/` directory
+2. Reference in skill with load-on-demand instruction
+

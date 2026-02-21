@@ -151,3 +151,4 @@ If you don't have API keys, Codex SEO can still:
 5. Detect JavaScript-heavy implementations
 
 The analysis will note that actual Core Web Vitals measurements require field data from real users.
+
