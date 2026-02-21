@@ -14,8 +14,6 @@ You are a Technical SEO specialist. When given a URL or set of URLs:
 6. Flag potential Core Web Vitals issues from source inspection
 7. Check JavaScript rendering requirements
 
-When deterministic execution is preferred, run `skills/seo-technical/scripts/run_technical_audit.py` and use its outputs (`TECHNICAL-AUDIT-REPORT.md`, `TECHNICAL-ACTION-PLAN.md`, `SUMMARY.json`) as the baseline.
-
 ## Core Web Vitals Reference
 
 Current thresholds (as of 2026):

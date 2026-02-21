@@ -1,95 +1,184 @@
 ---
 name: seo-hreflang
 description: >
-  Validate and generate hreflang implementations for international SEO.
-  Checks self-referencing tags, return-tag reciprocity, x-default coverage,
-  code validity, canonical alignment, protocol consistency, and cross-domain
-  relationships. Use for prompts like "hreflang audit", "international SEO",
-  "multi-language tags", or "generate hreflang sitemap".
+  Hreflang and international SEO audit, validation, and generation. Detects
+  common mistakes, validates language/region codes, and generates correct
+  hreflang implementations. Use when user says "hreflang", "i18n SEO",
+  "international SEO", "multi-language", "multi-region", or "language tags".
 ---
 
-# Hreflang and International SEO
+# Hreflang & International SEO
 
-Use deterministic execution for reproducible hreflang validation and generation.
+Validate existing hreflang implementations or generate correct hreflang tags
+for multi-language and multi-region sites. Supports HTML, HTTP header, and
+XML sitemap implementations.
 
-## Runtime
+## Validation Checks
 
-- Main runner: `skills/seo-hreflang/scripts/run_hreflang.py`
-- Dependencies: `skills/seo-hreflang/requirements.txt`
+### 1. Self-Referencing Tags
+- Every page must include an hreflang tag pointing to itself
+- The self-referencing URL must exactly match the page's canonical URL
+- Missing self-referencing tags cause Google to ignore the entire hreflang set
 
-## Quick Run
+### 2. Return Tags
+- If page A links to page B with hreflang, page B must link back to page A
+- Every hreflang relationship must be bidirectional (A→B and B→A)
+- Missing return tags invalidate the hreflang signal for both pages
+- Check all language versions reference each other (full mesh)
 
-Validate from a page URL:
+### 3. x-default Tag
+- Required: designates the fallback page for unmatched languages/regions
+- Typically points to the language selector page or English version
+- Only one x-default per set of alternates
+- Must also have return tags from all other language versions
 
-```bash
-python skills/seo-hreflang/scripts/run_hreflang.py validate \
-  --url https://example.com/page \
-  --output-dir seo-hreflang-output
+### 4. Language Code Validation
+- Must use ISO 639-1 two-letter codes (e.g., `en`, `fr`, `de`, `ja`)
+- Common errors:
+  - `eng` instead of `en` (ISO 639-2, not valid for hreflang)
+  - `jp` instead of `ja` (incorrect code for Japanese)
+  - `zh` without region qualifier (ambiguous — use `zh-Hans` or `zh-Hant`)
+
+### 5. Region Code Validation
+- Optional region qualifier uses ISO 3166-1 Alpha-2 (e.g., `en-US`, `en-GB`, `pt-BR`)
+- Format: `language-REGION` (lowercase language, uppercase region)
+- Common errors:
+  - `en-uk` instead of `en-GB` (UK is not a valid ISO 3166-1 code)
+  - `es-LA` (Latin America is not a country — use specific countries)
+  - Region without language prefix
+
+### 6. Canonical URL Alignment
+- Hreflang tags must only appear on canonical URLs
+- If a page has `rel=canonical` pointing elsewhere, hreflang on that page is ignored
+- The canonical URL and hreflang URL must match exactly (including trailing slashes)
+- Non-canonical pages should not be in any hreflang set
+
+### 7. Protocol Consistency
+- All URLs in an hreflang set must use the same protocol (HTTPS or HTTP)
+- Mixed HTTP/HTTPS in hreflang sets causes validation failures
+- After HTTPS migration, update all hreflang tags to HTTPS
+
+### 8. Cross-Domain Support
+- Hreflang works across different domains (e.g., example.com and example.de)
+- Cross-domain hreflang requires return tags on both domains
+- Verify both domains are verified in Google Search Console
+- Sitemap-based implementation recommended for cross-domain setups
+
+## Common Mistakes
+
+| Issue | Severity | Fix |
+|-------|----------|-----|
+| Missing self-referencing tag | Critical | Add hreflang pointing to same page URL |
+| Missing return tags (A→B but no B→A) | Critical | Add matching return tags on all alternates |
+| Missing x-default | High | Add x-default pointing to fallback/selector page |
+| Invalid language code (e.g., `eng`) | High | Use ISO 639-1 two-letter codes |
+| Invalid region code (e.g., `en-uk`) | High | Use ISO 3166-1 Alpha-2 codes |
+| Hreflang on non-canonical URL | High | Move hreflang to canonical URL only |
+| HTTP/HTTPS mismatch in URLs | Medium | Standardize all URLs to HTTPS |
+| Trailing slash inconsistency | Medium | Match canonical URL format exactly |
+| Hreflang in both HTML and sitemap | Low | Choose one method — sitemap preferred for large sites |
+| Language without region when needed | Low | Add region qualifier for geo-targeted content |
+
+## Implementation Methods
+
+### Method 1: HTML Link Tags
+Best for: Sites with <50 language/region variants per page.
+
+```html
+<link rel="alternate" hreflang="en-US" href="https://example.com/page" />
+<link rel="alternate" hreflang="en-GB" href="https://example.co.uk/page" />
+<link rel="alternate" hreflang="fr" href="https://example.com/fr/page" />
+<link rel="alternate" hreflang="x-default" href="https://example.com/page" />
 ```
 
-Validate from sitemap XML:
+Place in `<head>` section. Every page must include all alternates including itself.
 
-```bash
-python skills/seo-hreflang/scripts/run_hreflang.py validate \
-  --sitemap-url https://example.com/hreflang-sitemap.xml \
-  --output-dir seo-hreflang-output
+### Method 2: HTTP Headers
+Best for: Non-HTML files (PDFs, documents).
+
+```
+Link: <https://example.com/page>; rel="alternate"; hreflang="en-US",
+      <https://example.com/fr/page>; rel="alternate"; hreflang="fr",
+      <https://example.com/page>; rel="alternate"; hreflang="x-default"
 ```
 
-Generate output from mapping JSON:
+Set via server configuration or CDN rules.
 
-```bash
-python skills/seo-hreflang/scripts/run_hreflang.py generate \
-  --mapping-file hreflang-mapping.json \
-  --method sitemap \
-  --output-dir seo-hreflang-output
+### Method 3: XML Sitemap (Recommended for large sites)
+Best for: Sites with many language variants, cross-domain setups, or 50+ pages.
+
+See Hreflang Sitemap Generation section below.
+
+### Method Comparison
+| Method | Best For | Pros | Cons |
+|--------|----------|------|------|
+| HTML link tags | Small sites (<50 variants) | Easy to implement, visible in source | Bloats `<head>`, hard to maintain at scale |
+| HTTP headers | Non-HTML files | Works for PDFs, images | Complex server config, not visible in HTML |
+| XML sitemap | Large sites, cross-domain | Scalable, centralized management | Not visible on page, requires sitemap maintenance |
+
+## Hreflang Generation
+
+### Process
+1. **Detect languages**: Scan site for language indicators (URL path, subdomain, TLD, HTML lang attribute)
+2. **Map page equivalents**: Match corresponding pages across languages/regions
+3. **Validate language codes**: Verify all codes against ISO 639-1 and ISO 3166-1
+4. **Generate tags**: Create hreflang tags for each page including self-referencing
+5. **Verify return tags**: Confirm all relationships are bidirectional
+6. **Add x-default**: Set fallback for each page set
+7. **Output**: Generate implementation code (HTML, HTTP headers, or sitemap XML)
+
+## Hreflang Sitemap Generation
+
+### Sitemap with Hreflang
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://example.com/page</loc>
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://example.com/page" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/page" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://example.de/page" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/page" />
+  </url>
+  <url>
+    <loc>https://example.com/fr/page</loc>
+    <xhtml:link rel="alternate" hreflang="en-US" href="https://example.com/page" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/page" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://example.de/page" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/page" />
+  </url>
+</urlset>
 ```
 
-## Validate Inputs
+Key rules:
+- Include the `xmlns:xhtml` namespace declaration
+- Every `<url>` entry must include ALL language alternates (including itself)
+- Each alternate must appear as a separate `<url>` entry with its own full set
+- Split at 50,000 URLs per sitemap file
 
-- Source mode (choose one):
-  - Page mode: `--url` or `--html-file` (exactly one)
-  - Sitemap mode: `--sitemap-url` or `--sitemap-file` (exactly one)
-- `--page-url` (optional): canonical URL for `--html-file`
-- `--max-fetch` (default `25`): max alternate pages fetched in URL mode
-- `--max-sitemaps` (default `20`): max child sitemaps traversed from index
-- `--strict-return` (optional): unresolved return-tag targets become High severity
-- `--strict-iso` (optional): include strict ISO notes when pycountry metadata is unavailable
+## Output
 
-## Generate Inputs
+### Hreflang Validation Report
 
-- `--mapping-file` (required): JSON list or `{ "sets": [...] }` with alternates
-- `--method`: `html`, `header`, or `sitemap`
-- `--default-locale` (optional): fallback locale used to auto-fill `x-default`
+#### Summary
+- Total pages scanned: XX
+- Language variants detected: XX
+- Issues found: XX (Critical: X, High: X, Medium: X, Low: X)
 
-## Checks
+#### Validation Results
+| Language | URL | Self-Ref | Return Tags | x-default | Status |
+|----------|-----|----------|-------------|-----------|--------|
+| en-US | https://... | ✅ | ✅ | ✅ | ✅ |
+| fr | https://... | ❌ | ⚠️ | ✅ | ❌ |
+| de | https://... | ✅ | ❌ | ✅ | ❌ |
 
-1. Self-referencing hreflang tags
-2. Return-tag reciprocity (A->B requires B->A)
-3. x-default presence and multiplicity
-4. Language/region/script code validity + formatting normalization
-5. Canonical URL alignment
-6. Protocol consistency within alternate set
-7. Cross-domain hreflang visibility signals
+### Generated Hreflang Tags
+- HTML `<link>` tags (if HTML method chosen)
+- HTTP header values (if header method chosen)
+- `hreflang-sitemap.xml` (if sitemap method chosen)
 
-## Guardrails
-
-1. Accept only `http`/`https` URLs.
-2. Reject localhost/private/reserved/loopback URL targets.
-3. Re-check redirect targets for public-host safety.
-4. Treat unresolved alternate targets as informational unless `--strict-return` is enabled.
-
-## Output Contract
-
-### Validate Mode
-
-- `HREFLANG-VALIDATION-REPORT.md`
-- `SUMMARY.json`
-
-### Generate Mode
-
-- `HREFLANG-GENERATION-REPORT.md`
-- `SUMMARY.json`
-- Method artifact:
-  - `hreflang-tags.html` (HTML method), or
-  - `hreflang-headers.txt` (Header method), or
-  - `hreflang-sitemap.xml` (Sitemap method)
+### Recommendations
+- Missing implementations to add
+- Incorrect codes to fix
+- Method migration suggestions (e.g., HTML → sitemap for scale)

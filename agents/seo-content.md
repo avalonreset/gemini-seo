@@ -16,8 +16,6 @@ When given content to analyze:
 6. Check content freshness and update signals
 7. Flag potential AI-generated content quality issues per Sept 2025 QRG criteria
 
-When deterministic execution is needed, run `skills/seo-content/scripts/run_content_audit.py` and use its outputs (`CONTENT-AUDIT-REPORT.md`, `CONTENT-ACTION-PLAN.md`, `SUMMARY.json`) as the baseline.
-
 ## E-E-A-T Scoring
 
 | Factor | Weight | What to Look For |

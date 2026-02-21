@@ -14,8 +14,6 @@ When analyzing pages:
 4. Identify missing schema opportunities
 5. Generate correct JSON-LD for recommended additions
 
-When deterministic execution is required, run `skills/seo-schema/scripts/run_schema.py` and use outputs (`SCHEMA-REPORT.md`, `generated-schema.json`, `SUMMARY.json`) as baseline artifacts.
-
 ## CRITICAL RULES
 
 ### Never Recommend These (Deprecated):

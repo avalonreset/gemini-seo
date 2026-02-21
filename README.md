@@ -4,65 +4,66 @@
 
 # Codex SEO
 
-Codex-first SEO skill suite with deterministic Python runners for repeatable audits, planning, and SEO artifact generation.
+Authentic Codex port of the original Claude SEO project.
 
-> Independent community project, not affiliated with or endorsed by OpenAI.
-> 
-> Built on the original **Claude SEO** concept by **Daniel** ([AgriciDaniel](https://github.com/AgriciDaniel)).  
-> Original project: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
+> Independent community project, not affiliated with or endorsed by OpenAI.  
+> Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
 
-[![CI](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml/badge.svg)](https://github.com/avalonreset/codex-seo/actions/workflows/runners-ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+## Project Intent
 
-## Why This Exists
+`codex-seo` is designed as a port, not a reinvention.
 
-`codex-seo` is a full port of `claude-seo` into a Codex-native workflow.
+Porting principles:
+- keep Claude SEO structure, logic, and behavior as close as possible
+- only add Codex-specific adaptations where platform differences require it
+- avoid custom feature drift that changes core audit behavior
 
-Goals of this port:
-- keep the original vision and coverage
-- remove Claude slash-command assumptions
-- support Codex skill routing by intent
-- preserve deterministic runner scripts for local/CI reliability
+## What Is Included
 
-## What Changed vs Original Claude SEO
+12 SEO skills, same coverage as Claude SEO:
+- `seo-audit`
+- `seo-page`
+- `seo-technical`
+- `seo-content`
+- `seo-schema`
+- `seo-images`
+- `seo-sitemap`
+- `seo-geo`
+- `seo-plan`
+- `seo-programmatic`
+- `seo-competitor-pages`
+- `seo-hreflang`
 
-- Codex-native docs, install paths, and workflow guidance
-- No `/seo ...` command dependency
-- Runner-first command model (`skills/*/scripts/run_*.py`)
-- Install/uninstall migrated from `~/.claude` to `$CODEX_HOME` (default `~/.codex`)
-- CI added to validate runner syntax/compile/help behavior on push and PR
-- Security hardening retained across runner fetch flows (SSRF-safe redirect handling)
+Audit specialist agents:
+- `seo-technical`
+- `seo-content`
+- `seo-schema`
+- `seo-sitemap`
+- `seo-performance`
+- `seo-visual`
 
-## Skill Coverage (12)
+## Codex-Specific Adaptation
 
-- `seo-audit` - full-site bounded crawl + weighted scoring
-- `seo-page` - deep single-page SEO analysis
-- `seo-technical` - crawl/index/render/security diagnostics
-- `seo-content` - E-E-A-T and content quality checks
-- `seo-schema` - schema analyze + generate
-- `seo-images` - image SEO + media optimization checks
-- `seo-sitemap` - sitemap analyze + generate
-- `seo-geo` - AI citation / GEO readiness
-- `seo-plan` - strategic plan generation by business type
-- `seo-programmatic` - programmatic SEO analyze + rollout planning
-- `seo-competitor-pages` - comparison page generation workflows
-- `seo-hreflang` - i18n hreflang validate + generate
+The only intentional behavioral adaptation for audits is execution mapping:
+- Claude subagent delegation maps to Codex multi-agent delegation (`spawn_agent` + `wait`)
+
+Everything else should remain aligned with upstream Claude SEO skill intent and output structure.
 
 ## Installation
 
-### One-command Install (Unix/macOS/Linux)
+### One-command install (Unix/macOS/Linux)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/avalonreset/codex-seo/main/install.sh | bash
 ```
 
-### One-command Install (Windows PowerShell)
+### One-command install (Windows PowerShell)
 
 ```powershell
 irm https://raw.githubusercontent.com/avalonreset/codex-seo/main/install.ps1 | iex
 ```
 
-### Manual Install
+### Manual install
 
 ```bash
 git clone https://github.com/avalonreset/codex-seo.git
@@ -70,7 +71,7 @@ cd codex-seo
 pip install -r requirements.txt
 ```
 
-Then copy skills to Codex:
+Copy skills to Codex:
 
 ```bash
 export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
@@ -81,97 +82,42 @@ for d in skills/*; do
   mkdir -p "$CODEX_HOME/skills/$name"
   cp -r "$d/"* "$CODEX_HOME/skills/$name/"
 done
+mkdir -p "$CODEX_HOME/agents"
+cp -r agents/* "$CODEX_HOME/agents/"
 ```
 
-## Quick Start (Codex Skill Mode)
+## Quick Start
 
-Use intent-driven prompts, for example:
-
+Use normal Codex prompts, for example:
 - "Run a full SEO audit for https://example.com"
 - "Analyze this page deeply: https://example.com/about"
-- "Validate hreflang for https://example.com and show fix list"
+- "Validate hreflang for https://example.com"
 - "Generate a sitemap from this URL list"
-- "Create a SaaS SEO plan for my site"
 
-## Tool Cheat Sheet (Deterministic Runner Mode)
+Expected audit behavior:
+1. fetches core pages
+2. delegates to specialist agents in parallel
+3. merges findings into `FULL-AUDIT-REPORT.md` and `ACTION-PLAN.md`
 
-Use these commands for reproducible local/CI outputs.
+## Optional CLI Runners
 
-| Workflow | Runner command |
-|---|---|
-| Full site audit | `python skills/seo-audit/scripts/run_audit.py https://example.com --output-dir out/audit` |
-| Single page audit | `python skills/seo-page/scripts/run_page_audit.py https://example.com/about --output-dir out/page` |
-| Technical SEO audit | `python skills/seo-technical/scripts/run_technical_audit.py https://example.com --output-dir out/technical` |
-| Content / E-E-A-T audit | `python skills/seo-content/scripts/run_content_audit.py https://example.com/blog/post --output-dir out/content` |
-| Schema analyze | `python skills/seo-schema/scripts/run_schema.py analyze --url https://example.com --output-dir out/schema-analyze` |
-| Schema generate | `python skills/seo-schema/scripts/run_schema.py generate --template article --page-url https://example.com/post --output-dir out/schema-generate` |
-| Sitemap analyze | `python skills/seo-sitemap/scripts/run_sitemap.py analyze --sitemap-url https://example.com/sitemap.xml --output-dir out/sitemap-analyze` |
-| Sitemap generate | `python skills/seo-sitemap/scripts/run_sitemap.py generate --base-url https://example.com --urls-file urls.txt --output-dir out/sitemap-generate` |
-| GEO analysis | `python skills/seo-geo/scripts/run_geo_analysis.py --url https://example.com --output-dir out/geo` |
-| Image SEO audit | `python skills/seo-images/scripts/run_image_audit.py --url https://example.com --output-dir out/images` |
-| Hreflang validate | `python skills/seo-hreflang/scripts/run_hreflang.py validate --url https://example.com --output-dir out/hreflang-validate` |
-| Hreflang generate | `python skills/seo-hreflang/scripts/run_hreflang.py generate --mapping-file mapping.json --output-dir out/hreflang-generate` |
-| Programmatic analyze | `python skills/seo-programmatic/scripts/run_programmatic.py analyze --dataset-file dataset.csv --output-dir out/programmatic-analyze` |
-| Programmatic plan | `python skills/seo-programmatic/scripts/run_programmatic.py plan --project-name \"Acme\" --pattern location-service --entity-singular location --entity-plural locations --base-path /services --expected-pages 200 --output-dir out/programmatic-plan` |
-| Competitor page generator | `python skills/seo-competitor-pages/scripts/run_competitor_pages.py --mode vs --your-product \"Acme\" --competitors \"Competitor\" --output-dir out/competitor` |
-| Strategic SEO plan | `python skills/seo-plan/scripts/run_plan.py --industry saas --business-name \"Acme\" --website https://example.com --output-dir out/plan` |
+Script runners are kept for local reproducibility and CI workflows, but they are not the primary skill behavior path.
 
-## Output Artifacts
+Example:
 
-Runners write structured outputs into `--output-dir`, typically including:
-- markdown reports (`*.md`)
-- JSON summaries (`SUMMARY.json`)
-- optional screenshots for visual-enabled flows
-
-Examples:
-- `FULL-AUDIT-REPORT.md`, `ACTION-PLAN.md` (`seo-audit`)
-- `TECHNICAL-AUDIT-REPORT.md`, `TECHNICAL-ACTION-PLAN.md` (`seo-technical`)
-- `PROGRAMMATIC-BLUEPRINT.md`, `QUALITY-GATES.json` (`seo-programmatic`)
-
-## Visual Checks and Playwright
-
-- Visual and mobile-browser checks use Playwright when available.
-- If Playwright/Chromium is missing, visual sections skip gracefully or use non-visual fallback logic.
-- For no-visual mode, use runner flags where available (`--visual off`, `--mobile-check off`).
+```bash
+python skills/seo-audit/scripts/run_audit.py https://example.com --output-dir out/audit
+```
 
 ## Architecture
 
 ```text
 seo/                            # Orchestrator skill + references
 skills/seo-*/                   # 12 specialized skills
-skills/*/scripts/run_*.py       # Deterministic runners
-agents/seo-*.md                 # Optional specialist agent profiles
+agents/seo-*.md                 # Specialist agent profiles
+skills/*/scripts/run_*.py       # Optional CLI runners
 schema/templates.json           # Schema templates
 ```
-
-## Demo
-
-This port does not yet include a dedicated Codex demo video.
-
-Original upstream demo (Claude SEO):
-- https://www.youtube.com/watch?v=COMnNlUakQk
-
-Included here for project lineage and feature context.
-
-## Project Lineage and Shout-Out
-
-- The core idea, workflow design, and original execution came from Daniel's project: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
-- `codex-seo` extends that work into a Codex-native skill + runner model without losing the original spirit
-- If this repo helps you, please star both projects:
-  - [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
-  - [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
-- Follow Daniel's work: [github.com/AgriciDaniel](https://github.com/AgriciDaniel)
-
-## MCP Integrations
-
-Codex SEO can be paired with MCP servers for live SEO data and enrichment:
-- Ahrefs MCP
-- Semrush MCP
-- Google Search Console MCP
-- PageSpeed Insights MCP
-- DataForSEO MCP
-
-See `docs/MCP-INTEGRATION.md` for setup examples.
 
 ## Documentation
 
@@ -184,20 +130,6 @@ See `docs/MCP-INTEGRATION.md` for setup examples.
 - [Security Policy](SECURITY.md)
 - [Legal Notice](LEGAL-NOTICE.md)
 
-## Community (Optional)
-
-All core functionality in this repository is open source and does not require any paid membership.
-
-If you want to join the broader community:
-- [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) *(affiliate link, I may earn a commission if you join).*
-
-## Branding and Disclosure Notes
-
-- This is an independent project and is not affiliated with or endorsed by OpenAI.
-- "Codex" is used to describe workflow compatibility, not official ownership.
-- This repository does not include official OpenAI logos or brand assets.
-- The optional community link above is an affiliate referral link.
-
 ## License
 
 MIT License. See [LICENSE](LICENSE).
@@ -205,4 +137,4 @@ MIT License. See [LICENSE](LICENSE).
 ## Attribution
 
 - Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
-- Codex adaptation, hardening, and packaging: [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
+- Codex port and maintenance: [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)

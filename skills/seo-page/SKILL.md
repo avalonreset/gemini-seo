@@ -1,52 +1,74 @@
 ---
 name: seo-page
 description: >
-  Run deep single-page SEO analysis with scoring, prioritized issues,
-  schema opportunities, and actionable fixes. Use for requests like
-  "analyze this page", "check this URL SEO", "single-page audit",
-  or when the user provides one page URL for review.
+  Deep single-page SEO analysis covering on-page elements, content quality,
+  technical meta tags, schema, images, and performance. Use when user says
+  "analyze this page", "check page SEO", or provides a single URL for review.
 ---
 
 # Single Page Analysis
 
-Run a deterministic single-page audit and generate a report plus machine-readable summary.
+## What to Analyze
 
-## Runtime
+### On-Page SEO
+- Title tag: 50-60 characters, includes primary keyword, unique
+- Meta description: 150-160 characters, compelling, includes keyword
+- H1: exactly one, matches page intent, includes keyword
+- H2-H6: logical hierarchy (no skipped levels), descriptive
+- URL: short, descriptive, hyphenated, no parameters
+- Internal links: sufficient, relevant anchor text, no orphan pages
+- External links: to authoritative sources, reasonable count
 
-- Main runner: `skills/seo-page/scripts/run_page_audit.py`
-- Install dependencies from `skills/seo-page/requirements.txt`
-- Optional screenshot capture uses Playwright Chromium
+### Content Quality
+- Word count vs page type minimums (see quality-gates.md)
+- Readability: Flesch Reading Ease score, grade level
+- Keyword density: natural (1-3%), semantic variations present
+- E-E-A-T signals: author bio, credentials, first-hand experience markers
+- Content freshness: publication date, last updated date
 
-## Quick Run
+### Technical Elements
+- Canonical tag: present, self-referencing or correct
+- Meta robots: index/follow unless intentionally blocked
+- Open Graph: og:title, og:description, og:image, og:url
+- Twitter Card: twitter:card, twitter:title, twitter:description
+- Hreflang: if multi-language, correct implementation
 
-```bash
-python skills/seo-page/scripts/run_page_audit.py https://example.com/about --output-dir seo-page-output --visual auto
+### Schema Markup
+- Detect all types (JSON-LD preferred)
+- Validate required properties
+- Identify missing opportunities
+- NEVER recommend HowTo (deprecated) or FAQ (restricted to gov/health)
+
+### Images
+- Alt text: present, descriptive, includes keywords where natural
+- File size: flag >200KB (warning), >500KB (critical)
+- Format: recommend WebP/AVIF over JPEG/PNG
+- Dimensions: width/height set for CLS prevention
+- Lazy loading: loading="lazy" on below-fold images
+
+### Core Web Vitals (reference only — not measurable from HTML alone)
+- Flag potential LCP issues (huge hero images, render-blocking resources)
+- Flag potential INP issues (heavy JS, no async/defer)
+- Flag potential CLS issues (missing image dimensions, injected content)
+
+## Output
+
+### Page Score Card
+```
+Overall Score: XX/100
+
+On-Page SEO:     XX/100  ████████░░
+Content Quality: XX/100  ██████████
+Technical:       XX/100  ███████░░░
+Schema:          XX/100  █████░░░░░
+Images:          XX/100  ████████░░
 ```
 
-## Inputs
+### Issues Found
+Organized by priority: Critical → High → Medium → Low
 
-- `url` (required): page URL to audit
-- `keyword` (optional): explicit focus keyword phrase
-- `visual` (optional): `auto|on|off` screenshot mode
+### Recommendations
+Specific, actionable improvements with expected impact
 
-## Guardrails
-
-1. Accept only `http` or `https`.
-2. Reject localhost, loopback, private, and reserved IP targets.
-3. Do not claim lab-measured CWV metrics from static HTML analysis.
-4. Flag deprecated `HowTo` schema and restricted `FAQPage` usage.
-
-## Analysis Scope
-
-- On-page SEO: title/meta/H1/heading hierarchy/URL shape
-- Content quality: word count, readability, keyword density, E-E-A-T signals
-- Technical tags: canonical, robots, OG, Twitter tags, redirects
-- Schema: JSON-LD detection/validation and opportunity generation
-- Images: alt text, dimensions, lazy loading, size risk via sampled HEAD checks
-- CWV risk signals: potential LCP/INP/CLS risk indicators
-
-## Output Contract
-
-- `PAGE-AUDIT-REPORT.md`: human-readable analysis with priority-grouped issues
-- `SUMMARY.json`: structured result payload for automation
-- `screenshots/page-desktop.png` when visual mode is available
+### Schema Suggestions
+Ready-to-use JSON-LD code for detected opportunities

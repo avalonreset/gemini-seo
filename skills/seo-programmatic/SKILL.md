@@ -2,106 +2,161 @@
 name: seo-programmatic
 description: >
   Programmatic SEO planning and analysis for pages generated at scale from data
-  sources. Deterministically audits data quality, URL structures, thin-content
-  risk, and index bloat; and generates implementation blueprints for scaled page
-  systems. Use for prompts like "programmatic SEO", "pages at scale",
-  "dynamic pages", "template pages", or "data-driven SEO".
+  sources. Covers template engines, URL patterns, internal linking automation,
+  thin content safeguards, and index bloat prevention. Use when user says
+  "programmatic SEO", "pages at scale", "dynamic pages", "template pages",
+  "generated pages", or "data-driven SEO".
 ---
 
 # Programmatic SEO Analysis & Planning
 
-Use deterministic execution for reproducible audits and plans.
+Build and audit SEO pages generated at scale from structured data sources.
+Enforces quality gates to prevent thin content penalties and index bloat.
 
-## Runtime
+## Data Source Assessment
 
-- Main runner: `skills/seo-programmatic/scripts/run_programmatic.py`
-- Dependencies: standard library only (see `skills/seo-programmatic/requirements.txt`)
+Evaluate the data powering programmatic pages:
+- **CSV/JSON files**: Row count, column uniqueness, missing values
+- **API endpoints**: Response structure, data freshness, rate limits
+- **Database queries**: Record count, field completeness, update frequency
+- Data quality checks:
+  - Each record must have enough unique attributes to generate distinct content
+  - Flag duplicate or near-duplicate records (>80% field overlap)
+  - Verify data freshness — stale data produces stale pages
 
-## Quick Run
+## Template Engine Planning
 
-Analyze a dataset + existing page inventory:
+Design templates that produce unique, valuable pages:
+- **Variable injection points**: Title, H1, body sections, meta description, schema
+- **Content blocks**: Static (shared across pages) vs dynamic (unique per page)
+- **Conditional logic**: Show/hide sections based on data availability
+- **Supplementary content**: Related items, contextual tips, user-generated content
+- Template review checklist:
+  - Each page must read as a standalone, valuable resource
+  - No "mad-libs" patterns (just swapping city/product names in identical text)
+  - Dynamic sections must add genuine information, not just keyword variations
 
-```bash
-python skills/seo-programmatic/scripts/run_programmatic.py analyze \
-  --dataset-file records.csv \
-  --pages-file pages.csv \
-  --output-dir seo-programmatic-output
-```
+## URL Pattern Strategy
 
-Generate a rollout blueprint:
+### Common Patterns
+- `/tools/[tool-name]` — Tool/product directory pages
+- `/[city]/[service]` — Location + service pages
+- `/integrations/[platform]` — Integration landing pages
+- `/glossary/[term]` — Definition/reference pages
+- `/templates/[template-name]` — Downloadable template pages
 
-```bash
-python skills/seo-programmatic/scripts/run_programmatic.py plan \
-  --project-name "Acme Integrations" \
-  --pattern integration \
-  --entity-singular integration \
-  --entity-plural integrations \
-  --base-path /integrations \
-  --expected-pages 1200 \
-  --output-dir seo-programmatic-output
-```
+### URL Rules
+- Lowercase, hyphenated slugs derived from data
+- Logical hierarchy reflecting site architecture
+- No duplicate slugs — enforce uniqueness at generation time
+- Keep URLs under 100 characters
+- No query parameters for primary content URLs
+- Consistent trailing slash usage (match existing site pattern)
 
-## Analyze Inputs
+## Internal Linking Automation
 
-- `dataset-file` (required): CSV or JSON records used to generate pages
-- `pages-file` (optional): CSV or JSON page inventory with quality metrics
-- `sample-size` (default `300`): max rows to evaluate for near-duplicate checks
-- `justified-scale` (optional): mark high-volume rollout as already approved
-- `output-dir`
+- **Hub/spoke model**: Category hub pages linking to individual programmatic pages
+- **Related items**: Auto-link to 3-5 related pages based on data attributes
+- **Breadcrumbs**: Generate BreadcrumbList schema from URL hierarchy
+- **Cross-linking**: Link between programmatic pages sharing attributes (same category, same city, same feature)
+- **Anchor text**: Use descriptive, varied anchor text — avoid exact-match keyword repetition
+- Link density: 3-5 internal links per 1000 words (match seo-content guidelines)
 
-### Expected `pages-file` fields (flexible naming)
+## Thin Content Safeguards
 
-- URL: `url` or `page_url`
-- Word count: `word_count` or `words`
-- Unique content %: `unique_content_pct` or `uniqueness_pct`
-- Reviewed flag: `reviewed` or `content_reviewed`
-- Canonical: `canonical_url` or `canonical`
-- Indexability: `indexable` / `noindex`
-- Internal links: `internal_links`
-- Status code: `status_code`
+### Quality Gates
 
-## Plan Inputs
+| Metric | Threshold | Action |
+|--------|-----------|--------|
+| Pages without content review | 100+ | ⚠️ WARNING — require content audit before publishing |
+| Pages without justification | 500+ | 🛑 HARD STOP — require explicit user approval and thin content audit |
+| Unique content per page | <40% | ❌ Flag as thin content — likely penalty risk |
+| Word count per page | <300 | ⚠️ Flag for review — may lack sufficient value |
 
-- `project-name` (required)
-- `pattern`: `tool|location-service|integration|glossary|template|custom`
-- `entity-singular`, `entity-plural`
-- `base-path` (default `/pages`)
-- `expected-pages` (default `250`)
-- `batch-size` (default `100`)
-- `minimum-unique-pct` (default `40`)
-- `minimum-word-count` (default `300`)
-- `output-dir`
+### Scaled Content Abuse — Enforcement Context (2025-2026)
 
-## Checks
+Google's Scaled Content Abuse policy (introduced March 2024) saw major enforcement escalation in 2025:
 
-1. Data quality: row volume, missing-field rates, duplicate/near-duplicate signals.
-2. URL hygiene: lowercase/hyphen rules, duplicates, query-parameter misuse, length limits.
-3. Thin-content risk: low uniqueness and low word-count flags.
-4. Review gate enforcement:
-   - `100+` pages without sufficient review sample -> warning
-   - `500+` pages without approval (`--justified-scale`) -> hard stop
-5. Canonical/indexability checks: canonical mismatches and low-value indexable pages.
-6. Internal-linking density distribution across programmatic pages.
-7. Category scoring and prioritized remediation actions.
+- **June 2025:** Wave of manual actions targeting websites with AI-generated content at scale
+- **August 2025:** SpamBrain spam update enhanced pattern detection for AI-generated link schemes and content farms
+- **Result:** Google reported 45% reduction in low-quality, unoriginal content in search results post-March 2024 enforcement
 
-## Guardrails
+**Enhanced quality gates for programmatic pages:**
+- **Content differentiation:** ≥30-40% of content must be genuinely unique between any two programmatic pages (not just city/keyword string replacement)
+- **Human review:** Minimum 5-10% sample review of generated pages before publishing
+- **Progressive rollout:** Publish in batches of 50-100 pages. Monitor indexing and rankings for 2-4 weeks before expanding. Never publish 500+ programmatic pages simultaneously without explicit quality review.
+- **Standalone value test:** Each page should pass: "Would this page be worth publishing even if no other similar pages existed?"
+- **Site reputation abuse:** If publishing programmatic content under a high-authority domain (not your own), this may trigger site reputation abuse penalties. Google began enforcing this aggressively in November 2024.
 
-1. Treat outputs as operational audit/planning guidance, not ranking guarantees.
-2. Keep low-value pages noindexed until quality gates pass.
-3. Prevent blind scale expansion without staged rollout and QA sampling.
-4. Preserve deterministic outputs from identical inputs.
+> **Recommendation:** The WARNING gate at `<40% unique content` remains appropriate. Consider a HARD STOP at `<30%` unique content to prevent scaled content abuse risk.
 
-## Output Contract
+### Safe Programmatic Pages (OK at scale)
+✅ Integration pages (with real setup docs, API details, screenshots)
+✅ Template/tool pages (with downloadable content, usage instructions)
+✅ Glossary pages (200+ word definitions with examples, related terms)
+✅ Product pages (unique specs, reviews, comparison data)
+✅ Data-driven pages (unique statistics, charts, analysis per record)
 
-### Analyze Mode
+### Penalty Risk (avoid at scale)
+❌ Location pages with only city name swapped in identical text
+❌ "Best [tool] for [industry]" without industry-specific value
+❌ "[Competitor] alternative" without real comparison data
+❌ AI-generated pages without human review and unique value-add
+❌ Pages where >60% of content is shared template boilerplate
 
-- `PROGRAMMATIC-SEO-REPORT.md`
-- `QUALITY-GATES.json`
-- `SUMMARY.json`
+### Uniqueness Calculation
+Unique content % = (words unique to this page) / (total words on page) × 100
 
-### Plan Mode
+Measure against all other pages in the programmatic set. Shared headers, footers, and navigation are excluded from the calculation. Template boilerplate text IS included.
 
-- `PROGRAMMATIC-BLUEPRINT.md`
-- `URL-PATTERN-EXAMPLES.csv`
-- `QUALITY-GATES.json`
-- `SUMMARY.json`
+## Canonical Strategy
+
+- Every programmatic page must have a self-referencing canonical tag
+- Parameter variations (sort, filter, pagination) canonical to the base URL
+- Paginated series: canonical to page 1 or use rel=next/prev
+- If programmatic pages overlap with manual pages, the manual page is canonical
+- No canonical to a different domain unless intentional cross-domain setup
+
+## Sitemap Integration
+
+- Auto-generate sitemap entries for all programmatic pages
+- Split at 50,000 URLs per sitemap file (protocol limit)
+- Use sitemap index if multiple sitemap files needed
+- `<lastmod>` reflects actual data update timestamp (not generation time)
+- Exclude noindexed programmatic pages from sitemap
+- Register sitemap in robots.txt
+- Update sitemap dynamically as new records are added to data source
+
+## Index Bloat Prevention
+
+- **Noindex low-value pages**: Pages that don't meet quality gates
+- **Pagination**: Noindex paginated results beyond page 1 (or use rel=next/prev)
+- **Faceted navigation**: Noindex filtered views, canonical to base category
+- **Crawl budget**: For sites with >10k programmatic pages, monitor crawl stats in Search Console
+- **Thin page consolidation**: Merge records with insufficient data into aggregated pages
+- **Regular audits**: Monthly review of indexed page count vs intended count
+
+## Output
+
+### Programmatic SEO Score: XX/100
+
+### Assessment Summary
+| Category | Status | Score |
+|----------|--------|-------|
+| Data Quality | ✅/⚠️/❌ | XX/100 |
+| Template Uniqueness | ✅/⚠️/❌ | XX/100 |
+| URL Structure | ✅/⚠️/❌ | XX/100 |
+| Internal Linking | ✅/⚠️/❌ | XX/100 |
+| Thin Content Risk | ✅/⚠️/❌ | XX/100 |
+| Index Management | ✅/⚠️/❌ | XX/100 |
+
+### Critical Issues (fix immediately)
+### High Priority (fix within 1 week)
+### Medium Priority (fix within 1 month)
+### Low Priority (backlog)
+
+### Recommendations
+- Data source improvements
+- Template modifications
+- URL pattern adjustments
+- Quality gate compliance actions

@@ -1,99 +1,151 @@
 ---
 name: seo-schema
 description: >
-  Detect, validate, and generate Schema.org structured data in JSON-LD format.
-  Use for prompts like "schema audit", "structured data check", "JSON-LD",
-  or "generate schema markup".
+  Detect, validate, and generate Schema.org structured data. JSON-LD format
+  preferred. Use when user says "schema", "structured data", "rich results",
+  "JSON-LD", or "markup".
 ---
 
-# Schema Analysis and Generation
+# Schema Markup Analysis & Generation
 
-Use deterministic execution for reproducible schema audits and template output.
+## Detection
 
-## Runtime
+1. Scan page source for JSON-LD `<script type="application/ld+json">`
+2. Check for Microdata (`itemscope`, `itemprop`)
+3. Check for RDFa (`typeof`, `property`)
+4. Always recommend JSON-LD as primary format (Google's stated preference)
 
-- Main runner: `skills/seo-schema/scripts/run_schema.py`
-- Dependencies: `skills/seo-schema/requirements.txt`
+## Validation
 
-## Quick Run
+- Check required properties per schema type
+- Validate against Google's supported rich result types
+- Test for common errors:
+  - Missing @context
+  - Invalid @type
+  - Wrong data types
+  - Placeholder text
+  - Relative URLs (should be absolute)
+  - Invalid date formats
+- Flag deprecated types (see below)
 
-Analyze a page:
+## Schema Type Status (as of Feb 2026)
 
-```bash
-python skills/seo-schema/scripts/run_schema.py analyze \
-  --url https://example.com/blog/post \
-  --output-dir seo-schema-output
+Read `references/schema-types.md` for the full list. Key rules:
+
+### ACTIVE — recommend freely:
+Organization, LocalBusiness, SoftwareApplication, WebApplication, Product (with Certification markup as of April 2025), ProductGroup, Offer, Service, Article, BlogPosting, NewsArticle, Review, AggregateRating, BreadcrumbList, WebSite, WebPage, Person, ProfilePage, ContactPage, VideoObject, ImageObject, Event, JobPosting, Course, DiscussionForumPosting
+
+### VIDEO & SPECIALIZED — recommend freely:
+BroadcastEvent, Clip, SeekToAction, SoftwareSourceCode
+
+See `schema/templates.json` for ready-to-use JSON-LD templates for these types.
+
+> **JSON-LD and JavaScript rendering:** Per Google's December 2025 JS SEO guidance, structured data injected via JavaScript may face delayed processing. For time-sensitive markup (especially Product, Offer), include JSON-LD in the initial server-rendered HTML.
+
+### RESTRICTED — only for specific sites:
+- **FAQ**: ONLY for government and healthcare authority sites (restricted Aug 2023)
+
+### DEPRECATED — never recommend:
+- **HowTo**: Rich results removed September 2023
+- **SpecialAnnouncement**: Deprecated July 31, 2025
+- **CourseInfo, EstimatedSalary, LearningVideo**: Retired June 2025
+- **ClaimReview**: Retired from rich results June 2025
+- **VehicleListing**: Retired from rich results June 2025
+- **Practice Problem**: Retired from rich results late 2025
+- **Dataset**: Retired from rich results late 2025
+- **Book Actions**: Deprecated then reversed — still functional as of Feb 2026 (historical note)
+
+## Generation
+
+When generating schema for a page:
+1. Identify page type from content analysis
+2. Select appropriate schema type(s)
+3. Generate valid JSON-LD with all required + recommended properties
+4. Include only truthful, verifiable data — use placeholders clearly marked for user to fill
+5. Validate output before presenting
+
+## Common Schema Templates
+
+### Organization
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "[Company Name]",
+  "url": "[Website URL]",
+  "logo": "[Logo URL]",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "[Phone]",
+    "contactType": "customer service"
+  },
+  "sameAs": [
+    "[Facebook URL]",
+    "[LinkedIn URL]",
+    "[Twitter URL]"
+  ]
+}
 ```
 
-Generate a template:
-
-```bash
-python skills/seo-schema/scripts/run_schema.py generate \
-  --template article \
-  --page-url https://example.com/blog/post \
-  --output-dir seo-schema-output
+### LocalBusiness
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "[Business Name]",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "[Street]",
+    "addressLocality": "[City]",
+    "addressRegion": "[State]",
+    "postalCode": "[ZIP]",
+    "addressCountry": "US"
+  },
+  "telephone": "[Phone]",
+  "openingHours": "Mo-Fr 09:00-17:00",
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": "[Lat]",
+    "longitude": "[Long]"
+  }
+}
 ```
 
-## Analyze Mode
+### Article/BlogPosting
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "[Title]",
+  "author": {
+    "@type": "Person",
+    "name": "[Author Name]"
+  },
+  "datePublished": "[YYYY-MM-DD]",
+  "dateModified": "[YYYY-MM-DD]",
+  "image": "[Image URL]",
+  "publisher": {
+    "@type": "Organization",
+    "name": "[Publisher]",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "[Logo URL]"
+    }
+  }
+}
+```
 
-### Inputs
+## Output
 
-- `--url` or `--html-file` (exactly one required)
-- `--page-url` (optional canonical URL when using `--html-file`)
-- `--timeout` (default `20`)
+- `SCHEMA-REPORT.md` — detection and validation results
+- `generated-schema.json` — ready-to-use JSON-LD snippets
 
-### Detection Scope
+### Validation Results
+| Schema | Type | Status | Issues |
+|--------|------|--------|--------|
+| ... | ... | ✅/⚠️/❌ | ... |
 
-1. JSON-LD scripts: `<script type="application/ld+json">`
-2. Microdata markers: `itemscope`, `itemprop`
-3. RDFa markers: `typeof`, `property`
-
-### Validation Rules
-
-1. `@context` should resolve to `https://schema.org` (inherited context accepted).
-2. `@type` must be valid and non-deprecated.
-3. Required properties must exist for recognized types.
-4. URL-like properties must be absolute URLs.
-5. Date fields should use ISO-8601 formatting.
-6. Placeholder text must be replaced before publishing.
-7. Restricted FAQ behavior:
-   - `FAQPage` is flagged for non-authority domains.
-
-### Deprecated/Restricted Handling
-
-- Deprecated/restricted for rich results: `HowTo`, `SpecialAnnouncement`, `CourseInfo`, `EstimatedSalary`, `LearningVideo`, `ClaimReview`, `VehicleListing`, `PracticeProblem`, `Dataset`
-- Restricted: `FAQPage` (authority domains only)
-
-### Analyze Output
-
-- `SCHEMA-REPORT.md`
-- `generated-schema.json` (opportunity templates)
-- `SUMMARY.json`
-
-## Generate Mode
-
-### Inputs
-
-- `--template` (required):
-  - `organization`
-  - `localbusiness`
-  - `article`
-  - `product`
-  - `website`
-  - `breadcrumb`
-  - `faq`
-- `--page-url` (required)
-- `--metadata-file` (optional JSON overrides)
-
-### Generate Output
-
-- `generated-schema.json`
-- `SUMMARY.json`
-
-## Guardrails
-
-1. Prefer JSON-LD output.
-2. Keep only truthful/verifiable values in production.
-3. Placeholder tokens in generated templates must be replaced before publishing.
-4. Avoid recommending deprecated schema types.
-
+### Recommendations
+- Missing schema opportunities
+- Validation fixes needed
+- Generated code for implementation

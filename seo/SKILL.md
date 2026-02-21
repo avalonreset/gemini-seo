@@ -1,78 +1,94 @@
 ---
 name: seo
 description: >
-  Comprehensive SEO analysis orchestration for any website or business type.
-  Routes requests to specialized SEO skills for full audits, page analysis,
-  technical checks, content quality (E-E-A-T), schema, images, sitemap,
-  GEO/AI-search readiness, programmatic SEO, competitor pages, hreflang,
-  and strategic planning.
+  Comprehensive SEO analysis for any website or business type. Performs full site
+  audits, single-page deep analysis, technical SEO checks (crawlability, indexability,
+  Core Web Vitals with INP), schema markup detection/validation/generation, content
+  quality assessment (E-E-A-T framework per Dec 2025 update extending to all
+  competitive queries), image optimization, sitemap analysis, and Generative Engine
+  Optimization (GEO) for AI Overviews, ChatGPT, and Perplexity citations. Analyzes
+  AI crawler accessibility (GPTBot, ClaudeBot, PerplexityBot), llms.txt compliance,
+  brand mention signals, and passage-level citability. Industry detection for SaaS,
+  e-commerce, local business, publishers, agencies. Triggers on: "SEO", "audit",
+  "schema", "Core Web Vitals", "sitemap", "E-E-A-T", "AI Overviews", "GEO",
+  "technical SEO", "content quality", "page speed", "structured data".
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+  - WebFetch
 ---
 
-# SEO Orchestrator Skill
+# SEO — Universal SEO Analysis Skill
 
-Use this orchestrator when the user asks for broad SEO analysis or is unsure which specialized workflow to run.
+Comprehensive SEO analysis across all industries (SaaS, local services,
+e-commerce, publishers, agencies). Orchestrates 12 specialized sub-skills
+and 6 subagents.
 
-## Routing Map
+## Quick Reference
 
-Map user intent to the appropriate skill:
+| Command | What it does |
+|---------|-------------|
+| `/seo audit <url>` | Full website audit with parallel subagent delegation |
+| `/seo page <url>` | Deep single-page analysis |
+| `/seo sitemap <url or generate>` | Analyze or generate XML sitemaps |
+| `/seo schema <url>` | Detect, validate, and generate Schema.org markup |
+| `/seo images <url>` | Image optimization analysis |
+| `/seo technical <url>` | Technical SEO audit (8 categories) |
+| `/seo content <url>` | E-E-A-T and content quality analysis |
+| `/seo geo <url>` | AI Overviews / Generative Engine Optimization |
+| `/seo plan <business-type>` | Strategic SEO planning |
+| `/seo programmatic [url\|plan]` | Programmatic SEO analysis and planning |
+| `/seo competitor-pages [url\|generate]` | Competitor comparison page generation |
+| `/seo hreflang [url]` | Hreflang/i18n SEO audit and generation |
 
-- Full site baseline audit -> `seo-audit`
-- Single URL deep dive -> `seo-page`
-- Crawl/index/render/security issues -> `seo-technical`
-- E-E-A-T / editorial quality -> `seo-content`
-- Structured data detection or generation -> `seo-schema`
-- Image optimization and media delivery -> `seo-images`
-- Sitemap validation or sitemap generation -> `seo-sitemap`
-- AI search and citation readiness (GEO) -> `seo-geo`
-- Strategic roadmap and implementation plan -> `seo-plan`
-- Programmatic SEO at scale -> `seo-programmatic`
-- Competitor comparison page workflows -> `seo-competitor-pages`
-- International hreflang validation/generation -> `seo-hreflang`
+## Orchestration Logic
 
-## Orchestration Policy
+When the user invokes `/seo audit`, delegate to subagents in parallel:
+1. Detect business type (SaaS, local, ecommerce, publisher, agency, other)
+2. Spawn subagents: seo-technical, seo-content, seo-schema, seo-sitemap, seo-performance, seo-visual
+3. Collect results and generate unified report with SEO Health Score (0-100)
+4. Create prioritized action plan (Critical → High → Medium → Low)
 
-When a request spans multiple areas:
+Codex mapping: implement this subagent delegation with `spawn_agent` + `wait` in parallel.
 
-1. Start with `seo-audit` for baseline if no prior evidence exists.
-2. Decompose into specialist tracks as needed (technical, content, schema, sitemap, performance, visual).
-3. Merge findings into one prioritized remediation sequence.
-4. Keep severity ordering strict: Critical -> High -> Medium -> Low.
+For individual commands, load the relevant sub-skill directly.
 
-## Industry Detection Heuristics
+## Industry Detection
 
-Detect likely business model from homepage signals:
-
-- SaaS: `/pricing`, `/features`, `/integrations`, docs, trial/signup CTAs
-- Local service: service-area language, address/phone prominence, map embeds
-- E-commerce: product/category/cart flows, product schema
-- Publisher: article index patterns, author/timestamp signals
-- Agency: case-study/portfolio/service-led structure
-
-Use detected type to bias recommendations, templates, and guardrails.
+Detect business type from homepage signals:
+- **SaaS**: pricing page, /features, /integrations, /docs, "free trial", "sign up"
+- **Local Service**: phone number, address, service area, "serving [city]", Google Maps embed
+- **E-commerce**: /products, /collections, /cart, "add to cart", product schema
+- **Publisher**: /blog, /articles, /topics, article schema, author pages, publication dates
+- **Agency**: /case-studies, /portfolio, /industries, "our work", client logos
 
 ## Quality Gates
 
-Apply hard rules:
-
-- Warning at 30+ location pages without strong uniqueness
-- Hard stop at 50+ location pages unless explicitly justified
-- Never recommend deprecated HowTo schema
-- FAQ schema only when site context qualifies
-- Use INP (not FID) in Core Web Vitals guidance
+Read `references/quality-gates.md` for thin content thresholds per page type.
+Hard rules:
+- ⚠️ WARNING at 30+ location pages (enforce 60%+ unique content)
+- 🛑 HARD STOP at 50+ location pages (require user justification)
+- Never recommend HowTo schema (deprecated Sept 2023)
+- FAQ schema only for government and healthcare sites
+- All Core Web Vitals references use INP, never FID
 
 ## Reference Files
 
-Load only what is needed:
+Load these on-demand as needed — do NOT load all at startup:
+- `references/cwv-thresholds.md` — Current Core Web Vitals thresholds and measurement details
+- `references/schema-types.md` — All supported schema types with deprecation status
+- `references/eeat-framework.md` — E-E-A-T evaluation criteria (Sept 2025 QRG update)
+- `references/quality-gates.md` — Content length minimums, uniqueness thresholds
 
-- `references/cwv-thresholds.md`
-- `references/schema-types.md`
-- `references/eeat-framework.md`
-- `references/quality-gates.md`
+## Scoring Methodology
 
-## Scoring Weights
+### SEO Health Score (0-100)
+Weighted aggregate of all categories:
 
 | Category | Weight |
-|---|---|
+|----------|--------|
 | Technical SEO | 25% |
 | Content Quality | 25% |
 | On-Page SEO | 20% |
@@ -81,11 +97,35 @@ Load only what is needed:
 | Images | 5% |
 | AI Search Readiness | 5% |
 
-## Output Requirements
+### Priority Levels
+- **Critical**: Blocks indexing or causes penalties (immediate fix required)
+- **High**: Significantly impacts rankings (fix within 1 week)
+- **Medium**: Optimization opportunity (fix within 1 month)
+- **Low**: Nice to have (backlog)
 
-For consolidated audits, return:
+## Sub-Skills
 
-- executive summary with top risks
-- score breakdown with evidence
-- issue list grouped by severity
-- staged action plan (immediate, 1-2 weeks, 30-day backlog)
+This skill orchestrates 12 specialized sub-skills:
+
+1. **seo-audit** — Full website audit with parallel delegation
+2. **seo-page** — Deep single-page analysis
+3. **seo-technical** — Technical SEO (8 categories)
+4. **seo-content** — E-E-A-T and content quality
+5. **seo-schema** — Schema markup detection and generation
+6. **seo-images** — Image optimization
+7. **seo-sitemap** — Sitemap analysis and generation
+8. **seo-geo** — AI Overviews / GEO optimization
+9. **seo-plan** — Strategic planning with templates
+10. **seo-programmatic** — Programmatic SEO analysis and planning
+11. **seo-competitor-pages** — Competitor comparison page generation
+12. **seo-hreflang** — Hreflang/i18n SEO audit and generation
+
+## Subagents
+
+For parallel analysis during audits:
+- `seo-technical` — Crawlability, indexability, security, CWV
+- `seo-content` — E-E-A-T, readability, thin content
+- `seo-schema` — Detection, validation, generation
+- `seo-sitemap` — Structure, coverage, quality gates
+- `seo-performance` — Core Web Vitals measurement
+- `seo-visual` — Screenshots, mobile testing, above-fold
