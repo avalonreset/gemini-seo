@@ -1,6 +1,6 @@
 <!-- Updated: 2026-02-20 -->
 
-![Codex SEO](screenshots/cover-image.jpeg?v=20260221f)
+![Codex SEO](screenshots/cover-image.jpeg?v=20260221g)
 
 # Codex SEO
 
