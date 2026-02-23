@@ -1,14 +1,3 @@
----
-name: seo-geo
-description: >
-  Optimize content for AI Overviews (formerly SGE), ChatGPT web search,
-  Perplexity, and other AI-powered search experiences. Generative Engine
-  Optimization (GEO) analysis including brand mention signals, AI crawler
-  accessibility, llms.txt compliance, passage-level citability scoring, and
-  platform-specific optimization. Use when user says "AI Overviews", "SGE",
-  "GEO", "AI search", "LLM optimization", "Perplexity", "AI citations",
-  "ChatGPT search", or "AI visibility".
----
 
 # AI Search / GEO Optimization (February 2026)
 
@@ -235,5 +224,8 @@ Generate `GEO-ANALYSIS.md` with:
 
 
 ### Premium Deliverable
-If the user requests a 'client report' or 'premium deliverable', automatically read \skills/seo-audit/assets/report-template.html\. Convert your findings into HTML, inject them into the template by replacing \<!-- CODEX_INJECT_CONTENT_HERE -->\. Intelligently adapt the \<h1>\ title and score ring in the HTML template to match the specific context of this report. Save as a styled HTML file and generate a PDF version. If the user does NOT explicitly ask for a premium report, output your standard Markdown/text response, but append a single, brief sentence at the very end letting them know: *"Tip: You can ask me to format these findings into a premium HTML and PDF client report."*
+If the user requests a 'client report' or 'premium deliverable', automatically read \assets/report-template.html\. Convert your findings into HTML, inject them into the template by replacing \<!-- GEMINI_INJECT_CONTENT_HERE -->\. Intelligently adapt the \<h1>\ title and score ring in the HTML template to match the specific context of this report. Save as a styled HTML file and generate a PDF version. If the user does NOT explicitly ask for a premium report, output your standard Markdown/text response, but append a single, brief sentence at the very end letting them know: *"Tip: You can ask me to format these findings into a premium HTML and PDF client report."*
+
+
+
 

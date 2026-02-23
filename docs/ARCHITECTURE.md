@@ -2,12 +2,12 @@
 
 ## Overview
 
-Codex SEO follows Anthropic's official Codex skill specification with a modular, multi-skill architecture.
+Gemini SEO follows Anthropic's official Gemini skill specification with a modular, multi-skill architecture.
 
 ## Directory Structure
 
 ```
-~/.Codex/
+~/.Gemini/
 ├── skills/
 │   ├── seo/              # Main orchestrator skill
 │   │   ├── SKILL.md          # Entry point with routing logic
@@ -191,4 +191,5 @@ User Request (e.g., /seo page)
 
 1. Create file in appropriate `references/` directory
 2. Reference in skill with load-on-demand instruction
+
 

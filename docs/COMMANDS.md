@@ -2,7 +2,7 @@
 
 ## Overview
 
-All Codex SEO commands start with `/seo` followed by a subcommand.
+All Gemini SEO commands start with `/seo` followed by a subcommand.
 
 ## Command List
 
@@ -276,4 +276,5 @@ Programmatic SEO analysis and planning for pages generated at scale.
 | `/seo sitemap <url>` | Sitemap validation |
 | `/seo sitemap generate` | Create new sitemap |
 | `/seo technical <url>` | Technical SEO check |
+
 

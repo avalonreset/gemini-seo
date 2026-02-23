@@ -1,11 +1,11 @@
-# Codex SEO Installer for Windows
+# Gemini SEO Installer for Windows
 # PowerShell installation script
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Codex SEO - Installer" -ForegroundColor Cyan
-Write-Host "  Codex Skill Suite" -ForegroundColor Cyan
+Write-Host "  Gemini SEO - Installer" -ForegroundColor Cyan
+Write-Host "  Gemini Skill Suite" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -82,25 +82,25 @@ try {
 }
 
 # Set paths
-$CodexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { "$env:USERPROFILE\.codex" }
-$SkillDir = "$CodexHome\skills\seo"
-$AgentDir = "$CodexHome\agents"
-$RepoUrl = "https://github.com/avalonreset/codex-seo"
+$GeminiHome = if ($env:Gemini_HOME) { $env:Gemini_HOME } else { "$env:USERPROFILE\.Gemini" }
+$SkillDir = "$GeminiHome\skills\seo"
+$AgentDir = "$GeminiHome\agents"
+$RepoUrl = "https://github.com/avalonreset/gemini-seo"
 
 # Create directories
 New-Item -ItemType Directory -Force -Path $SkillDir | Out-Null
 New-Item -ItemType Directory -Force -Path $AgentDir | Out-Null
 
 # Clone to temp directory
-$TempDir = Join-Path $env:TEMP "codex-seo-install"
+$TempDir = Join-Path $env:TEMP "gemini-seo-install"
 if (Test-Path $TempDir) {
     Remove-Item -Recurse -Force $TempDir
 }
 
-$keepTemp = ($env:CODEX_SEO_KEEP_TEMP -eq '1')
+$keepTemp = ($env:Gemini_SEO_KEEP_TEMP -eq '1')
 
 try {
-    Write-Host "[INFO] Downloading Codex SEO..." -ForegroundColor Yellow
+    Write-Host "[INFO] Downloading Gemini SEO..." -ForegroundColor Yellow
     $clone = Invoke-External -Exe 'git' -Args @('clone','--depth','1',$RepoUrl,$TempDir) -Quiet
     if ($clone.ExitCode -ne 0) {
         throw "git clone failed. Output:`n$($clone.Output -join "`n")"
@@ -121,7 +121,7 @@ try {
     $SkillsPath = "$TempDir\skills"
     if (Test-Path $SkillsPath) {
         Get-ChildItem -Directory $SkillsPath | ForEach-Object {
-            $target = "$CodexHome\skills\$($_.Name)"
+            $target = "$GeminiHome\skills\$($_.Name)"
             New-Item -ItemType Directory -Force -Path $target | Out-Null
             Copy-Item -Recurse -Force "$($_.FullName)\*" $target
         }
@@ -213,10 +213,11 @@ try {
 }
 
 Write-Host ""
-Write-Host "[OK] Codex SEO installed successfully!" -ForegroundColor Green
+Write-Host "[OK] Gemini SEO installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Usage:" -ForegroundColor Cyan
-Write-Host "  1. Start Codex"
+Write-Host "  1. Start Gemini"
 Write-Host "  2. Ask for SEO workflows (full audit, technical audit, schema validation)"
 Write-Host ""
 Write-Host "Python deps location: $installedReqFile" -ForegroundColor Gray
+

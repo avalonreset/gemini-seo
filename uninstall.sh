@@ -2,15 +2,15 @@
 set -euo pipefail
 
 main() {
-    CODEX_ROOT="${CODEX_HOME:-${HOME}/.codex}"
-    echo "→ Uninstalling Codex SEO..."
+    Gemini_ROOT="${Gemini_HOME:-${HOME}/.Gemini}"
+    echo "→ Uninstalling Gemini SEO..."
 
     # Remove main skill (includes venv and requirements.txt)
-    rm -rf "${CODEX_ROOT}/skills/seo"
+    rm -rf "${Gemini_ROOT}/skills/seo"
 
     # Remove sub-skills
     for skill in seo-audit seo-competitor-pages seo-content seo-geo seo-hreflang seo-images seo-page seo-plan seo-programmatic seo-schema seo-sitemap seo-technical; do
-        rm -rf "${CODEX_ROOT}/skills/${skill}"
+        rm -rf "${Gemini_ROOT}/skills/${skill}"
     done
 
     # Remove agent profiles
@@ -27,10 +27,11 @@ main() {
         seo-sitemap \
         seo-technical \
         seo-visual; do
-        rm -f "${CODEX_ROOT}/agents/${agent}.md"
+        rm -f "${Gemini_ROOT}/agents/${agent}.md"
     done
 
-    echo "✓ Codex SEO uninstalled."
+    echo "✓ Gemini SEO uninstalled."
 }
 
 main "$@"
+

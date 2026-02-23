@@ -1,11 +1,3 @@
----
-name: seo-audit
-description: >
-  Full website SEO audit with parallel multi-agent delegation. Crawls up to 500
-  pages, detects business type, delegates to 6 specialists, generates health
-  score. Use when user says "audit", "full SEO check", "analyze my site",
-  or "website health check".
----
 
 # Full Website SEO Audit
 
@@ -14,16 +6,16 @@ description: >
 1. **Fetch homepage** — use `scripts/fetch_page.py` to retrieve HTML
 2. **Detect business type** — analyze homepage signals per seo orchestrator
 3. **Crawl site** — follow internal links up to 500 pages, respect robots.txt
-4. **Delegate to multi-agents** (if available, otherwise run inline sequentially):
-   - `seo-technical` — robots.txt, sitemaps, canonicals, Core Web Vitals, security headers
-   - `seo-content` — E-E-A-T, readability, thin content, AI citation readiness
-   - `seo-schema` — detection, validation, generation recommendations
-   - `seo-sitemap` — structure analysis, quality gates, missing pages
-   - `seo-performance` — LCP, INP, CLS measurements
-   - `seo-visual` — screenshots, mobile testing, above-fold analysis
+4. **Execute Specialist Checks** (load the relevant reference files as needed):
+   - `references/seo-technical.md` — robots.txt, sitemaps, canonicals, Core Web Vitals, security headers
+   - `references/seo-content.md` — E-E-A-T, readability, thin content, AI citation readiness
+   - `references/seo-schema.md` — detection, validation, generation recommendations
+   - `references/seo-sitemap.md` — structure analysis, quality gates, missing pages
+   - `references/seo-performance.md` — LCP, INP, CLS measurements
+   - `references/seo-visual.md` — screenshots, mobile testing, above-fold analysis
 5. **Score** — aggregate into SEO Health Score (0-100)
 6. **Report** — generate prioritized action plan
-7. **Deliverables** — automatically read `skills/seo-audit/assets/report-template.html`. Convert your `FULL-AUDIT-REPORT.md` into HTML, and inject it into the template by replacing `<!-- CODEX_INJECT_CONTENT_HERE -->`. Save this as `CLIENT-SEO-AUDIT.html`. Also generate a PDF version named `CLIENT-SEO-AUDIT.pdf` (using browser automation or system tools if available, or instruct the user to "Print to PDF" from the generated HTML).
+7. **Deliverables** — automatically read `assets/report-template.html`. Convert your `FULL-AUDIT-REPORT.md` into HTML, and inject it into the template by replacing `<!-- GEMINI_INJECT_CONTENT_HERE -->`. Save this as `CLIENT-SEO-AUDIT.html`. Also generate a PDF version named `CLIENT-SEO-AUDIT.pdf` (using browser automation or system tools if available, or instruct the user to "Print to PDF" from the generated HTML).
 
 ## Crawl Configuration
 
@@ -108,4 +100,7 @@ Delay between requests: 1 second
 - **High**: Significantly impacts rankings (fix within 1 week)
 - **Medium**: Optimization opportunity (fix within 1 month)
 - **Low**: Nice to have (backlog)
+
+
+
 

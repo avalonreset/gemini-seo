@@ -1,10 +1,3 @@
----
-name: seo-content
-description: >
-  Content quality and E-E-A-T analysis with AI citation readiness assessment.
-  Use when user says "content quality", "E-E-A-T", "content analysis",
-  "readability check", "thin content", or "content audit".
----
 
 # Content Quality & E-E-A-T Analysis
 
@@ -161,5 +154,8 @@ GEO is the emerging discipline of optimizing content specifically for AI-generat
 
 
 ### Premium Deliverable
-If the user requests a 'client report' or 'premium deliverable', automatically read \skills/seo-audit/assets/report-template.html\. Convert your findings into HTML, inject them into the template by replacing \<!-- CODEX_INJECT_CONTENT_HERE -->\. Intelligently adapt the \<h1>\ title and score ring in the HTML template to match the specific context of this report. Save as a styled HTML file and generate a PDF version. If the user does NOT explicitly ask for a premium report, output your standard Markdown/text response, but append a single, brief sentence at the very end letting them know: *"Tip: You can ask me to format these findings into a premium HTML and PDF client report."*
+If the user requests a 'client report' or 'premium deliverable', automatically read \assets/report-template.html\. Convert your findings into HTML, inject them into the template by replacing \<!-- GEMINI_INJECT_CONTENT_HERE -->\. Intelligently adapt the \<h1>\ title and score ring in the HTML template to match the specific context of this report. Save as a styled HTML file and generate a PDF version. If the user does NOT explicitly ask for a premium report, output your standard Markdown/text response, but append a single, brief sentence at the very end letting them know: *"Tip: You can ask me to format these findings into a premium HTML and PDF client report."*
+
+
+
 
