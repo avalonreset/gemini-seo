@@ -26,7 +26,7 @@ Gemini
 
 4. Re-run installer:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Gemini-seo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/avalonreset/gemini-seo/main/install.sh | bash
 ```
 
 ---
@@ -66,7 +66,7 @@ ls ~/.Gemini/skills/seo/requirements.txt
 
 If missing, download it directly:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Gemini-seo/main/requirements.txt \
+curl -fsSL https://raw.githubusercontent.com/avalonreset/gemini-seo/main/requirements.txt \
   -o ~/.Gemini/skills/seo/requirements.txt
 ```
 
@@ -234,5 +234,4 @@ python3 ~/.Gemini/skills/seo/scripts/parse_html.py page.html --json
 # Test screenshot
 python3 ~/.Gemini/skills/seo/scripts/capture_screenshot.py https://example.com
 ```
-
 

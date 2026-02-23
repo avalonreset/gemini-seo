@@ -116,6 +116,7 @@ MIT License. See [LICENSE](LICENSE).
 ## Attribution
 
 - Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
+- Original Claude SEO demo: [Watch on YouTube](https://www.youtube.com/watch?v=COMnNlUakQk)
 - Gemini Native Port: [avalonreset/gemini-seo](https://github.com/avalonreset/gemini-seo)
 
 ## Community
