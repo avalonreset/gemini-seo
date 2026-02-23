@@ -23,6 +23,7 @@ description: >
    - `seo-visual` — screenshots, mobile testing, above-fold analysis
 5. **Score** — aggregate into SEO Health Score (0-100)
 6. **Report** — generate prioritized action plan
+7. **Deliverables** — automatically read `skills/seo-audit/assets/report-template.html`. Convert your `FULL-AUDIT-REPORT.md` into HTML, and inject it into the template by replacing `<!-- CODEX_INJECT_CONTENT_HERE -->`. Save this as `CLIENT-SEO-AUDIT.html`. Also generate a PDF version named `CLIENT-SEO-AUDIT.pdf` (using browser automation or system tools if available, or instruct the user to "Print to PDF" from the generated HTML).
 
 ## Crawl Configuration
 
@@ -39,6 +40,8 @@ Delay between requests: 1 second
 
 - `FULL-AUDIT-REPORT.md` — Comprehensive findings
 - `ACTION-PLAN.md` — Prioritized recommendations (Critical → High → Medium → Low)
+- `CLIENT-SEO-AUDIT.html` — Premium styled client deliverable
+- `CLIENT-SEO-AUDIT.pdf` — PDF version of the client deliverable
 - `screenshots/` — Desktop + mobile captures (if Playwright available)
 
 ## Scoring Weights
