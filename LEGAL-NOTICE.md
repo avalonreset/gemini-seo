@@ -1,12 +1,12 @@
 # Legal Notice
 
-This repository is an independent community project and is not affiliated with or endorsed by OpenAI.
+This repository is an independent community project and is not affiliated with or endorsed by Google.
 
 ## Trademark and Naming
 
 - "Gemini" is used to describe workflow compatibility and intended usage context.
-- This project does not claim official OpenAI ownership or endorsement.
-- Official OpenAI logos and brand assets are not included in this repository.
+- This project does not claim official Google ownership or endorsement.
+- Official Google logos and brand assets are not included in this repository.
 
 ## Upstream License and Attribution
 
@@ -23,4 +23,3 @@ This repository is an independent community project and is not affiliated with o
 ## Disclaimer
 
 This file is for transparency and project hygiene. It is not legal advice.
-
