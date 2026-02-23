@@ -1,6 +1,6 @@
 <!-- Updated: 2026-02-22 -->
 
-![Gemini SEO](screenshots/cover-image.jpeg?v=20260223c)
+![Gemini SEO](screenshots/cover-image.jpeg?v=20260223d)
 
 # Gemini SEO
 
