@@ -9,7 +9,7 @@ Release date: 2026-02-21
   - `skills/seo-performance`
   - `skills/seo-visual`
 - Improved audit detail depth and report quality across technical, content, schema, sitemap, performance, and visual tracks.
-- Added explicit Codex chat setup guidance for experimental Multi-agent mode (`/experimental` -> enable **Multi-agent**).
+- Added explicit Gemini chat setup guidance for experimental Multi-agent mode (`/experimental` -> enable **Multi-agent**).
 
 ## What Changed
 
@@ -36,9 +36,9 @@ Release date: 2026-02-21
 - Documentation
   - Updated README + architecture/commands docs to clarify multi-agent requirement and fallback behavior.
 
-## Important Setup Note (Codex Chat)
+## Important Setup Note (Gemini Chat)
 
-For authentic parallel `/seo audit` behavior in Codex chat:
+For authentic parallel `/seo audit` behavior in Gemini chat:
 
 1. Run `/experimental`
 2. Enable **Multi-agent**
@@ -56,3 +56,4 @@ Deterministic CLI runners remain available regardless of this toggle.
 ## Full Diff
 
 - Compare: `v1.3.1...v1.4.0`
+

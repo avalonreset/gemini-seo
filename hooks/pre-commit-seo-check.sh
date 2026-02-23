@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-commit SEO validation hook for Codex.
+# Pre-commit SEO validation hook for Gemini.
 #
-# Hook configuration in ~/.codex/settings.json:
+# Hook configuration in ~/.Gemini/settings.json:
 # {
 #   "hooks": {
 #     "PreToolUse": [
@@ -12,7 +12,7 @@ set -euo pipefail
 #         "hooks": [
 #           {
 #             "type": "command",
-#             "command": "~/.codex/skills/seo/hooks/pre-commit-seo-check.sh",
+#             "command": "~/.Gemini/skills/seo/hooks/pre-commit-seo-check.sh",
 #             "exitCodes": { "2": "block" }
 #           }
 #         ]
@@ -107,3 +107,4 @@ else
     echo "✓ All SEO checks passed"
     exit 0
 fi
+

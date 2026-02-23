@@ -10,23 +10,23 @@
 
 1. Verify installation:
 ```bash
-ls ~/.Codex/skills/seo/SKILL.md
+ls ~/.Gemini/skills/seo/SKILL.md
 ```
 
 2. Check SKILL.md has proper frontmatter:
 ```bash
-head -5 ~/.Codex/skills/seo/SKILL.md
+head -5 ~/.Gemini/skills/seo/SKILL.md
 ```
 Should start with `---` followed by YAML.
 
-3. Restart Codex:
+3. Restart Gemini:
 ```bash
-Codex
+Gemini
 ```
 
 4. Re-run installer:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Gemini-seo/main/install.sh | bash
 ```
 
 ---
@@ -41,12 +41,12 @@ As of v1.2.0, dependencies are installed in a venv. Try:
 
 ```bash
 # Use the venv pip
-~/.Codex/skills/seo/.venv/bin/pip install -r ~/.Codex/skills/seo/requirements.txt
+~/.Gemini/skills/seo/.venv/bin/pip install -r ~/.Gemini/skills/seo/requirements.txt
 ```
 
 If the venv doesn't exist, install with `--user`:
 ```bash
-pip install --user -r ~/.Codex/skills/seo/requirements.txt
+pip install --user -r ~/.Gemini/skills/seo/requirements.txt
 ```
 
 Or install individually:
@@ -61,13 +61,13 @@ pip install --user beautifulsoup4 requests lxml playwright Pillow urllib3 valida
 **Solution:** As of v1.2.0, requirements.txt is copied to the skill directory:
 
 ```bash
-ls ~/.Codex/skills/seo/requirements.txt
+ls ~/.Gemini/skills/seo/requirements.txt
 ```
 
 If missing, download it directly:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Codex-seo/main/requirements.txt \
-  -o ~/.Codex/skills/seo/requirements.txt
+curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/Gemini-seo/main/requirements.txt \
+  -o ~/.Gemini/skills/seo/requirements.txt
 ```
 
 ### Windows Python Detection Issues
@@ -105,9 +105,9 @@ python -m playwright install chromium
 
 **Solution:**
 ```bash
-chmod +x ~/.Codex/skills/seo/scripts/*.py
-chmod +x ~/.Codex/skills/seo/hooks/*.py
-chmod +x ~/.Codex/skills/seo/hooks/*.sh
+chmod +x ~/.Gemini/skills/seo/scripts/*.py
+chmod +x ~/.Gemini/skills/seo/hooks/*.py
+chmod +x ~/.Gemini/skills/seo/hooks/*.sh
 ```
 
 ---
@@ -120,7 +120,7 @@ chmod +x ~/.Codex/skills/seo/hooks/*.sh
 
 1. Verify hook is in settings:
 ```bash
-cat ~/.Codex/settings.json
+cat ~/.Gemini/settings.json
 ```
 
 2. Ensure correct path:
@@ -133,7 +133,7 @@ cat ~/.Codex/settings.json
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.Codex/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
+            "command": "python3 ~/.Gemini/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
             "exitCodes": { "2": "block" }
           }
         ]
@@ -145,7 +145,7 @@ cat ~/.Codex/settings.json
 
 3. Test hook directly:
 ```bash
-python3 ~/.Codex/skills/seo/hooks/validate-schema.py test.html
+python3 ~/.Gemini/skills/seo/hooks/validate-schema.py test.html
 ```
 
 ---
@@ -158,17 +158,17 @@ python3 ~/.Codex/skills/seo/hooks/validate-schema.py test.html
 
 1. Verify agent files exist:
 ```bash
-ls ~/.Codex/agents/seo-*.md
+ls ~/.Gemini/agents/seo-*.md
 ```
 
 2. Check agent frontmatter:
 ```bash
-head -5 ~/.Codex/agents/seo-technical.md
+head -5 ~/.Gemini/agents/seo-technical.md
 ```
 
 3. Re-install agents:
 ```bash
-cp /path/to/Codex-seo/agents/*.md ~/.Codex/agents/
+cp /path/to/Gemini-seo/agents/*.md ~/.Gemini/agents/
 ```
 
 ---
@@ -218,20 +218,21 @@ cp /path/to/Codex-seo/agents/*.md ~/.Codex/agents/
 
 2. **GitHub Issues:** Report bugs at the repository
 
-3. **Logs:** Check Codex's output for error details
+3. **Logs:** Check Gemini's output for error details
 
 ## Debug Mode
 
-To see detailed output, check Codex's internal logs or run scripts directly:
+To see detailed output, check Gemini's internal logs or run scripts directly:
 
 ```bash
 # Test fetch
-python3 ~/.Codex/skills/seo/scripts/fetch_page.py https://example.com
+python3 ~/.Gemini/skills/seo/scripts/fetch_page.py https://example.com
 
 # Test parse
-python3 ~/.Codex/skills/seo/scripts/parse_html.py page.html --json
+python3 ~/.Gemini/skills/seo/scripts/parse_html.py page.html --json
 
 # Test screenshot
-python3 ~/.Codex/skills/seo/scripts/capture_screenshot.py https://example.com
+python3 ~/.Gemini/skills/seo/scripts/capture_screenshot.py https://example.com
 ```
+
 

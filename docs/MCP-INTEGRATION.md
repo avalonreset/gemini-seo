@@ -3,7 +3,7 @@
 
 ## Overview
 
-Codex SEO can integrate with Model Context Protocol (MCP) servers to access external APIs and enhance analysis capabilities.
+Gemini SEO can integrate with Model Context Protocol (MCP) servers to access external APIs and enhance analysis capabilities.
 
 ## Available Integrations
 
@@ -142,7 +142,7 @@ def get_crux_data(url: str, api_key: str) -> dict:
 
 ## Without API Keys
 
-If you don't have API keys, Codex SEO can still:
+If you don't have API keys, Gemini SEO can still:
 
 1. Analyze HTML source for potential issues
 2. Identify common performance problems
@@ -151,4 +151,5 @@ If you don't have API keys, Codex SEO can still:
 5. Detect JavaScript-heavy implementations
 
 The analysis will note that actual Core Web Vitals measurements require field data from real users.
+
 

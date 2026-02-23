@@ -1,4 +1,4 @@
-# Contributing to Codex SEO
+# Contributing to Gemini SEO
 
 Thanks for contributing.
 
@@ -12,8 +12,8 @@ Thanks for contributing.
 ## Local Setup
 
 ```bash
-git clone https://github.com/avalonreset/codex-seo.git
-cd codex-seo
+git clone https://github.com/avalonreset/gemini-seo.git
+cd gemini-seo
 pip install -r requirements.txt
 ```
 
@@ -38,3 +38,4 @@ python -m py_compile hooks/validate-schema.py scripts/fetch_page.py
 ## Security Fixes
 
 For vulnerabilities, follow `SECURITY.md` instead of opening a detailed public issue.
+

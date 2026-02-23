@@ -1,4 +1,4 @@
-# Codex SEO - Python Dependencies
+# Gemini SEO - Python Dependencies
 # Bounded version pinning with security-conscious minimums
 # Last updated: February 7, 2026
 
@@ -11,3 +11,4 @@ urllib3>=2.6.3,<3.0.0             # CRITICAL: CVE-2026-21441 (CVSS 8.9), CVE-202
 validators>=0.22.0,<1.0.0         # No known CVEs
 rapidocr-onnxruntime>=1.2.3,<2.0.0 # Optional OCR layer for section-level visual intelligence
 matplotlib>=3.9.2,<4.0.0         # Chart rendering for reference-style audit figures
+

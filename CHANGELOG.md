@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.1] - 2026-02-20
 
 ### Release
-- **Codex port complete.**
+- **Gemini port complete.**
 
 ### Added
 - `.gitattributes` for consistent cross-platform line-ending normalization.
@@ -22,16 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-02-20
 
 ### Changed
-- Full documentation port to Codex conventions:
+- Full documentation port to Gemini conventions:
   - `README.md`
   - `docs/COMMANDS.md`
   - `docs/INSTALLATION.md`
   - `docs/ARCHITECTURE.md`
   - `docs/TROUBLESHOOTING.md`
   - `seo/SKILL.md`
-- Installer/uninstaller paths switched from `~/.claude` to `$CODEX_HOME` (default `~/.codex`).
-- Installer source URL switched to `https://github.com/avalonreset/codex-seo`.
-- Hook examples updated to Codex settings/path conventions.
+- Installer/uninstaller paths switched from `~/.claude` to `$Gemini_HOME` (default `~/.Gemini`).
+- Installer source URL switched to `https://github.com/avalonreset/Gemini-seo`.
+- Hook examples updated to Gemini settings/path conventions.
 
 ### Security
 - Preserved previous SSRF and input-hardening fixes.
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **requirements.txt**: Persisted to the installed skill directory for user retry
 
 ### Fixed
-- **YAML frontmatter parsing**: Removed HTML comments before `---` delimiter in 8 files (skills: seo-content, seo-images, seo-programmatic, seo-schema, seo-technical; agents: seo-content, seo-performance, seo-technical). Thanks @kylewhirl for identifying this in the codex-seo fork.
+- **YAML frontmatter parsing**: Removed HTML comments before `---` delimiter in 8 files (skills: seo-content, seo-images, seo-programmatic, seo-schema, seo-technical; agents: seo-content, seo-performance, seo-technical). Thanks @kylewhirl for identifying this in the Gemini-seo fork.
 - **Windows installer**: Merged @kfrancis improvements — `python -m pip`, `py -3` launcher fallback, requirements.txt persistence, non-fatal multi-agent copy, better error diagnostics (PR #6)
 - **requirements.txt missing after install**: Now copied to skill directory so users can retry (#1)
 
@@ -122,3 +122,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Valid hook matchers (tool name only, no argument patterns)
 - Correct multi-agent frontmatter fields (name, description, tools)
 - Upstream CLI command was `claude` (not `claude-code`)
+

@@ -4,7 +4,7 @@ This repository is an independent community project and is not affiliated with o
 
 ## Trademark and Naming
 
-- "Codex" is used to describe workflow compatibility and intended usage context.
+- "Gemini" is used to describe workflow compatibility and intended usage context.
 - This project does not claim official OpenAI ownership or endorsement.
 - Official OpenAI logos and brand assets are not included in this repository.
 
@@ -23,3 +23,4 @@ This repository is an independent community project and is not affiliated with o
 ## Disclaimer
 
 This file is for transparency and project hygiene. It is not legal advice.
+

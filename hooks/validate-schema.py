@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Post-edit schema validation hook for Codex.
+"""Post-edit schema validation hook for Gemini.
 
 Validates JSON-LD schema after file edits. Returns exit code 2 to block
 if critical validation errors found.
 
-Hook configuration in ~/.codex/settings.json:
+Hook configuration in ~/.Gemini/settings.json:
 {
   "hooks": {
     "PostToolUse": [
@@ -13,7 +13,7 @@ Hook configuration in ~/.codex/settings.json:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.codex/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
+            "command": "python3 ~/.Gemini/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
             "exitCodes": { "2": "block" }
           }
         ]
@@ -160,3 +160,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

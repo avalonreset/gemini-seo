@@ -1,4 +1,4 @@
-# TODO — codex-seo
+# TODO — Gemini-seo
 
 ## Completed in v1.2.0
 
@@ -18,14 +18,14 @@
   Sandbox Python scripts in Docker for users who want extra isolation.
 
 - [ ] **Opencode compatibility** (Priority: Low, from @Ehtz #4)
-  Adapt skill architecture for Opencode. @kylewhirl already ported to OpenAI Codex.
+  Adapt skill architecture for Opencode. @kylewhirl already ported to OpenAI Gemini.
 
 - [ ] **Multi-agent timeout/compact handling** (Priority: Medium, from @JawandS #3)
   Primary agent sometimes terminates before multi-agents finish. Consider encouraging multi-agents
   to compact context and adding explicit wait logic.
 
 - [ ] **Native Chrome tools vs Playwright** (Priority: Medium, from @artyomsv #7, @btafoya PR #8)
-  Codex may provide native browser automation in some environments. Evaluate replacing Playwright with built-in tools
+  Gemini may provide native browser automation in some environments. Evaluate replacing Playwright with built-in tools
   to eliminate the ~200MB Chromium dependency.
 
 ## Deferred from February 2026 Research Report
@@ -47,3 +47,4 @@
 ---
 
 *Last updated: February 19, 2026*
+
