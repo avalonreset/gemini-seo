@@ -50,3 +50,6 @@ screenshots/
 # Temporary analysis files
 *-AUDIT-REPORT.md
 *-ACTION-PLAN.md
+
+*.skill
+
