@@ -1,38 +1,62 @@
+<!-- Updated: 2026-02-22 -->
+
+![Gemini SEO](screenshots/cover-image.jpeg?v=20260222a)
+
 # Gemini SEO
 
-A comprehensive suite of 14 professional-grade SEO analysis tools, running natively as a Gemini CLI Skill.
+A comprehensive suite of 14 professional-grade SEO analysis workflows, running natively inside the Gemini CLI.
 
-> Independent community project, not affiliated with or endorsed by Google.
-> Original concept based on Claude SEO.
+> Independent community project, not affiliated with or endorsed by Google.  
+> Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
 
-## What Makes Gemini SEO Special?
+## Project Intent
 
-Unlike ports for other platforms that rely on cumbersome multi-agent spawning (like Codex or Claude), **Gemini SEO** takes full advantage of Gemini's native context management using a **Single Master Orchestrator** and **Progressive Disclosure Architecture**.
+`gemini-seo` is a Gemini-native adaptation of Claude SEO's methodology, tuned for Gemini CLI behavior and context handling.
+
+Adaptation principles:
+- Preserve the original strategic SEO coverage while adapting execution for Gemini workflows.
+- Use **Progressive Disclosure** so only the needed reference guide is loaded per request.
+- Route everything through a **Single Master Orchestrator** (`SKILL.md`) for speed and context control.
+- Support premium client-ready deliverables via HTML and PDF reporting templates.
+
+## What Is Included
+
+Primary workflow coverage (14):
+- `seo-audit` - full-site auditing
+- `seo-page` - deep single-page analysis
+- `seo-technical` - technical SEO review
+- `seo-content` - E-E-A-T and quality analysis
+- `seo-schema` - schema detection/validation/generation
+- `seo-images` - image SEO and performance analysis
+- `seo-sitemap` - sitemap audit/generation
+- `seo-geo` - AI search and citation readiness
+- `seo-plan` - strategic SEO planning
+- `seo-programmatic` - pages-at-scale analysis
+- `seo-competitor-pages` - comparison/alternatives strategy
+- `seo-hreflang` - international SEO validation
+- `seo-performance` - Core Web Vitals/performance checks
+- `seo-visual` - screenshot and visual-first diagnostics
+
+All workflows are orchestrated by:
+- `gemini-seo` - top-level routing/orchestration skill
+
+## Why Gemini SEO Works
 
 ### 1. Single Master Orchestrator
-There is only one skill file (`SKILL.md`). It acts as a highly efficient routing table. It doesn't load 14 massive rulesets at once, keeping Gemini's context window lightning fast and laser-focused. 
+`SKILL.md` acts as a compact router that delegates to exact references only when needed.
 
 ### 2. Progressive Disclosure
-When you request a specific task (e.g., "Analyze the Schema on this page"), the Orchestrator dynamically loads only the exact tactical guide it needs (e.g., `references/seo-schema.md`), performs the deep analysis, and immediately drops it when finished. This ensures zero cross-contamination of instructions and massive token savings.
+Each request pulls only the relevant tactical file (for example `references/seo-schema.md`), avoiding unnecessary context bloat.
 
 ### 3. Built-In Premium Reporting
-Every single one of the 14 SEO tools is wired into a premium reporting engine. While a full site audit generates this automatically, you can append "give me the premium deliverable" to *any* request (like a quick Core Web Vitals check or an E-E-A-T analysis). Gemini will intelligently adapt the master HTML/PDF template (`assets/report-template.html`) to match your specific request, instantly generating a $5,000-level agency deliverable.
-
-## Features
-- **Full Site Audit:** Generates premium HTML/PDF client deliverables.
-- **Deep Single-Page Analysis:** On-page, technical, content quality.
-- **E-E-A-T & Content Quality:** Evaluates signals, readability, depth.
-- **Schema Markup:** Detects, validates, and generates JSON-LD.
-- **Core Web Vitals & Performance:** Measures LCP, INP, CLS.
-- **AI Search Readiness (GEO):** Optimizes for AI Overviews, ChatGPT, Perplexity.
-- **Competitor Pages & Hreflang:** Validation and generation.
-- **Programmatic SEO & Strategic Planning:** Actionable roadmaps.
+Every workflow can output a polished report format using `assets/report-template.html`.  
+When requested, outputs can be packaged as both HTML and PDF deliverables.
 
 ## Installation
 
 Gemini SEO is packaged as a standard Gemini CLI Skill.
 
-1. Download the latest `gemini-seo.skill` file from the [Releases](#) page (or build it from source).
+1. Download the latest `gemini-seo.skill` file from the [Releases](https://github.com/avalonreset/gemini-seo/releases) page.
 2. Install it using the Gemini CLI:
    ```bash
    gemini skills install path/to/gemini-seo.skill --scope user
@@ -41,16 +65,29 @@ Gemini SEO is packaged as a standard Gemini CLI Skill.
    ```bash
    /skills reload
    ```
+4. Optional verification:
+   ```bash
+   /skills list
+   ```
 
-## Usage
+## Quick Start
 
-Use natural language prompts inside Gemini CLI to trigger workflows:
+Use natural language prompts inside the Gemini CLI, for example:
 - "Run a full SEO audit for https://example.com"
 - "Analyze this page deeply: https://example.com/about"
 - "Validate hreflang for https://example.com"
 - "Generate a sitemap from this URL list"
 
-**Pro-Tip:** Ask for a "premium report" or "client deliverable" at the end of any prompt, and Gemini SEO will automatically format its findings into a highly polished, responsive HTML dashboard and PDF.
+Tip: append "premium report" or "client deliverable" to any request to generate polished report outputs.
+
+## Output Artifacts
+
+Depending on task type, Gemini SEO can produce:
+- `FULL-AUDIT-REPORT.md`
+- `ACTION-PLAN.md`
+- `CLIENT-SEO-AUDIT.html`
+- `CLIENT-SEO-AUDIT.pdf`
+- Supporting screenshots and analysis files when applicable
 
 ## Architecture
 
@@ -62,7 +99,28 @@ gemini-seo/
 └── assets/                     # Premium HTML reporting templates
 ```
 
+## Documentation
+
+- [Installation Guide](docs/INSTALLATION.md)
+- [Workflow Reference](docs/COMMANDS.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Legal Notice](LEGAL-NOTICE.md)
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
+
 ## Attribution
 
 - Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
 - Gemini Native Port: [avalonreset/gemini-seo](https://github.com/avalonreset/gemini-seo)
+
+## Community
+
+If you want deeper tactical training, templates, and live implementation breakdowns, you can join:
+**[AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c)**
+
+Disclosure: The link above is a referral link. If you join through it, I may receive a commission at no additional cost to you.
