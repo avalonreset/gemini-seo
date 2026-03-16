@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible defect in codex-seo
+description: Report a reproducible defect in gemini-seo
 title: "[bug] "
 labels:
   - bug
