@@ -131,12 +131,6 @@ gemini-seo/
 - Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
 - Original Claude SEO demo: [Watch on YouTube](https://www.youtube.com/watch?v=COMnNlUakQk)
 
-## Also by avalonreset
-
-- **[codex-seo](https://github.com/avalonreset/codex-seo)** - Open source SEO audit tools for Codex CLI
-- **[wan2gp-operator](https://github.com/avalonreset/wan2gp-operator)** - CLI operator for Wan2GP text-to-video generation
-- **[BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)** - Hacker-styled WezTerm terminal for Windows
-
 ## FAQ
 
 ### What does Gemini SEO do?
@@ -154,6 +148,8 @@ Yes. The `seo-geo` workflow specifically analyzes your site's readiness for AI-p
 ## Community
 
 Join [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) for access to exclusive projects (referral link).
+
+Other projects: [codex-seo](https://github.com/avalonreset/codex-seo) | [wan2gp-operator](https://github.com/avalonreset/wan2gp-operator) | [BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)
 
 ## License
 
