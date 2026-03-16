@@ -19,6 +19,10 @@ Preferred reporting paths:
 
 The maintainer will follow up with a private channel for full details.
 
+## Response Timeline
+
+Reports are reviewed on a best-effort basis. The maintainer will acknowledge receipt and provide an initial assessment when available. There is no guaranteed response window for this project.
+
 ## Disclosure Expectations
 
 - Give maintainers reasonable time to investigate and patch before public disclosure.

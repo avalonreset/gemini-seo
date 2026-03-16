@@ -35,6 +35,12 @@ python -m py_compile hooks/validate-schema.py scripts/fetch_page.py
 - Update docs when commands or workflows change.
 - Avoid unrelated refactors.
 
+## Code Style
+
+- Python: follow PEP 8 conventions. If you have [Ruff](https://docs.astral.sh/ruff/) installed, run `ruff check .` before submitting.
+- Shell scripts: use `shellcheck` where possible.
+- Keep formatting consistent with surrounding code.
+
 ## Security Fixes
 
 For vulnerabilities, follow `SECURITY.md` instead of opening a detailed public issue.
