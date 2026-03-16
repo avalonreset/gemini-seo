@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-16
+
+### Added
+- Keyword-optimized README with DataForSEO-backed primary keyword ("open source seo tools", 320/mo, difficulty 30, GitHub at #7 in SERP)
+- CI, version, and license badges in README
+- Table of Contents in README
+- CITATION.cff for GitHub citation button
+- CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
+- SUPPORT.md with links to docs, Discussions, and issue templates
+- FUNDING.yml template
+- dependabot.yml for pip and github-actions weekly updates
+- release.yml for auto-generated release note categories
+- devcontainer.json for Python 3.12 Codespaces onboarding
+- WebP banner (95% smaller than original JPEG, 7.4MB to 401KB)
+- 13 SEO-optimized topics (added open-source, seo-tools, cli, eeat)
+- GitHub Discussions enabled
+
+### Changed
+- README rewritten: problem-first opening paragraph, workflow comparison table, keyword-rich H1
+- Repository description optimized for search: front-loads "Open source SEO tools"
+- Wiki disabled (was empty, created abandoned appearance)
+- SECURITY.md updated with direct email contact (benjamin@rankenstein.pro)
+- LICENSE updated with modification copyright
+
+### Fixed
+- Issue template branding: bug_report.yml and feature_request.yml referenced "codex-seo" instead of "gemini-seo"
+- config.yml security link pointed to codex-seo instead of gemini-seo
+
+---
+
 ## [1.3.1] - 2026-02-20
 
 ### Release
