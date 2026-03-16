@@ -130,8 +130,6 @@ gemini-seo/
 
 - Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
 - Original Claude SEO demo: [Watch on YouTube](https://www.youtube.com/watch?v=COMnNlUakQk)
-- Gemini native port: avalonreset/gemini-seo (this repo)
-- Related Codex port: [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
 
 ## Also by avalonreset
 
