@@ -149,8 +149,7 @@ Yes. The `seo-geo` workflow specifically analyzes your site's readiness for AI-p
 
 ## Community
 
-Join the community: [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c).
-Disclosure: Referral link; I may earn a commission at no additional cost to you.
+Join the community: [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) (referral link).
 
 ## License
 
