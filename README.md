@@ -149,7 +149,10 @@ Yes. The `seo-geo` workflow specifically analyzes your site's readiness for AI-p
 
 Join [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) for access to exclusive projects (referral link).
 
-Other projects: [codex-seo](https://github.com/avalonreset/codex-seo) | [wan2gp-operator](https://github.com/avalonreset/wan2gp-operator) | [BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)
+**Other projects:**
+[codex-seo](https://github.com/avalonreset/codex-seo) - SEO audits for Codex CLI |
+[wan2gp-operator](https://github.com/avalonreset/wan2gp-operator) - AI video generation from your terminal |
+[BenjaminTerm](https://github.com/avalonreset/BenjaminTerm) - hacker-styled terminal for Windows
 
 ## License
 
