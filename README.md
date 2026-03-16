@@ -8,25 +8,26 @@
 [![Version](https://img.shields.io/github/v/release/avalonreset/gemini-seo)](https://github.com/avalonreset/gemini-seo/releases)
 [![License](https://img.shields.io/github/license/avalonreset/gemini-seo)](LICENSE)
 
-Most open source SEO tools are web apps that require hosting, databases, and ongoing maintenance. Gemini SEO takes a different approach: 14 professional-grade SEO analysis workflows that run directly inside the Gemini CLI with zero infrastructure. Just install the skill and start auditing.
+Most open source SEO tools are web apps that require hosting, databases, and ongoing maintenance. Gemini SEO takes a different approach: 14 professional-grade SEO analysis workflows, 6 multi-agent runners, and client-ready reporting that run directly inside the Gemini CLI with zero infrastructure. Just install the skill and start auditing.
 
 > Independent community project, not affiliated with or endorsed by Google.
 > Original project and concept: [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo)
 
 ## Table of Contents
 
-- [What Is Included](#what-is-included)
-- [Why Gemini SEO Works](#why-gemini-seo-works)
+- [SEO Workflows and Commands](#seo-workflows-and-commands)
+- [How It Works](#how-it-works)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Output Artifacts](#output-artifacts)
 - [Architecture](#architecture)
 - [Documentation](#documentation)
 - [Attribution](#attribution)
+- [FAQ](#faq)
 - [Community](#community)
 - [License](#license)
 
-## What Is Included
+## SEO Workflows and Commands
 
 Gemini SEO provides 14 SEO audit and analysis workflows, all orchestrated through a single master skill file:
 
@@ -47,7 +48,7 @@ Gemini SEO provides 14 SEO audit and analysis workflows, all orchestrated throug
 | `seo-performance` | Core Web Vitals (LCP, INP, CLS) measurement |
 | `seo-visual` | Screenshot capture and visual diagnostics |
 
-## Why Gemini SEO Works
+## How It Works
 
 ### Single Master Orchestrator
 `SKILL.md` acts as a compact router that delegates to the exact reference guide needed for each request. No wasted context, no loading unnecessary files.
@@ -131,6 +132,20 @@ gemini-seo/
 - Original Claude SEO demo: [Watch on YouTube](https://www.youtube.com/watch?v=COMnNlUakQk)
 - Gemini Native Port: [avalonreset/gemini-seo](https://github.com/avalonreset/gemini-seo)
 - Related Codex Port: [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
+
+## FAQ
+
+### What does Gemini SEO do?
+
+Gemini SEO is a collection of 14 SEO analysis workflows that run inside the Gemini CLI. It performs full-site audits, technical SEO checks, schema validation, content quality scoring, and AI search readiness analysis without requiring a web app or external service.
+
+### How is this different from other SEO tools?
+
+Traditional SEO tools like Screaming Frog or Ahrefs run as standalone applications or cloud services. Gemini SEO runs directly in your terminal as a CLI skill, loading only the specific analysis needed for each request. No browser, no subscription, no infrastructure.
+
+### Does this work with Google AI Overviews and ChatGPT?
+
+Yes. The `seo-geo` workflow specifically analyzes your site's readiness for AI-powered search, including Google AI Overviews, ChatGPT web search, and Perplexity. It checks AI crawler accessibility, passage-level citability, and structured data signals.
 
 ## Community
 
