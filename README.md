@@ -132,6 +132,8 @@ gemini-seo/
 - Original Claude SEO demo: [Watch on YouTube](https://www.youtube.com/watch?v=COMnNlUakQk)
 - Gemini Native Port: [avalonreset/gemini-seo](https://github.com/avalonreset/gemini-seo)
 - Related Codex Port: [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
+- AI video generation: [avalonreset/wan2gp-operator](https://github.com/avalonreset/wan2gp-operator)
+- Terminal emulator: [avalonreset/BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)
 
 ## FAQ
 
