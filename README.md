@@ -151,11 +151,11 @@ Join [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref
 
 ## Other Projects
 
-| Project | Description |
-|---------|-------------|
-| [codex-seo](https://github.com/avalonreset/codex-seo) | Same firepower, built for Codex CLI. 12 workflows, 6 parallel agents, client-ready HTML/PDF reports from your terminal. |
-| [wan2gp-operator](https://github.com/avalonreset/wan2gp-operator) | CLI operator for Wan2GP text-to-video. VRAM-aware compose, headless batch runs, and a music video pipeline. |
-| [BenjaminTerm](https://github.com/avalonreset/BenjaminTerm) | Hacker-styled WezTerm distribution for Windows. Smart clipboard, paste undo, 86 curated dark themes, borderless glass mode. |
+**[codex-seo](https://github.com/avalonreset/codex-seo)** - Same firepower, built for Codex CLI. 12 workflows, 6 parallel agents, client-ready HTML/PDF reports from your terminal.
+
+**[wan2gp-operator](https://github.com/avalonreset/wan2gp-operator)** - CLI operator for Wan2GP text-to-video. VRAM-aware compose, headless batch runs, and a music video pipeline.
+
+**[BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)** - Hacker-styled WezTerm distribution for Windows. Smart clipboard, paste undo, 86 curated dark themes, borderless glass mode.
 
 ## License
 
