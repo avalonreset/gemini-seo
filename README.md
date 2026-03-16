@@ -149,13 +149,13 @@ Yes. The `seo-geo` workflow specifically analyzes your site's readiness for AI-p
 
 Join [AI Marketing Hub Pro](https://www.skool.com/ai-marketing-hub-pro/about?ref=59f96e9d9f2b4047b53627692d8c8f0c) for access to exclusive projects (referral link).
 
-**Other projects:**
+## Other Projects
 
-> **[codex-seo](https://github.com/avalonreset/codex-seo)** - Same firepower, built for Codex CLI. 12 workflows, 6 parallel agents, client-ready HTML/PDF reports from your terminal.
-
-> **[wan2gp-operator](https://github.com/avalonreset/wan2gp-operator)** - CLI operator for Wan2GP text-to-video. VRAM-aware compose, headless batch runs, auto-retry, and a music video pipeline that turns audio into beat-synced AI videos.
-
-> **[BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)** - Hacker-styled WezTerm distribution for Windows. Smart clipboard, paste undo, 86 curated dark themes with shuffle-bag rotation, borderless glass mode.
+| Project | Description |
+|---------|-------------|
+| [codex-seo](https://github.com/avalonreset/codex-seo) | Same firepower, built for Codex CLI. 12 workflows, 6 parallel agents, client-ready HTML/PDF reports from your terminal. |
+| [wan2gp-operator](https://github.com/avalonreset/wan2gp-operator) | CLI operator for Wan2GP text-to-video. VRAM-aware compose, headless batch runs, and a music video pipeline. |
+| [BenjaminTerm](https://github.com/avalonreset/BenjaminTerm) | Hacker-styled WezTerm distribution for Windows. Smart clipboard, paste undo, 86 curated dark themes, borderless glass mode. |
 
 ## License
 
