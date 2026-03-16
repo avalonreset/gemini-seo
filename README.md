@@ -132,8 +132,12 @@ gemini-seo/
 - Original Claude SEO demo: [Watch on YouTube](https://www.youtube.com/watch?v=COMnNlUakQk)
 - Gemini Native Port: [avalonreset/gemini-seo](https://github.com/avalonreset/gemini-seo)
 - Related Codex Port: [avalonreset/codex-seo](https://github.com/avalonreset/codex-seo)
-- AI video generation: [avalonreset/wan2gp-operator](https://github.com/avalonreset/wan2gp-operator)
-- Terminal emulator: [avalonreset/BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)
+
+## Also by avalonreset
+
+- **[codex-seo](https://github.com/avalonreset/codex-seo)** - Open source SEO audit tools for Codex CLI
+- **[wan2gp-operator](https://github.com/avalonreset/wan2gp-operator)** - CLI operator for Wan2GP text-to-video generation
+- **[BenjaminTerm](https://github.com/avalonreset/BenjaminTerm)** - Hacker-styled WezTerm terminal for Windows
 
 ## FAQ
 
