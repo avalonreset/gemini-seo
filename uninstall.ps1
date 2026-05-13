@@ -33,10 +33,10 @@ function Remove-Target {
         }
     }
 
-    Write-Host "$Label: removed $removedSkills skill dirs and $removedAgents agent files."
+    Write-Host "${Label}: removed $removedSkills skill dirs and $removedAgents agent files."
 }
 
-$Targets = if ($env:GEMINI_SEO_TARGETS) { $env:GEMINI_SEO_TARGETS } else { "gemini,codex,claude" }
+$Targets = if ($env:GEMINI_SEO_TARGETS) { $env:GEMINI_SEO_TARGETS } else { "gemini" }
 
 foreach ($target in $Targets.Split(",")) {
     $target = $target.Trim().ToLowerInvariant()

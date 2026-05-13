@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGETS="${GEMINI_SEO_TARGETS:-gemini,codex,claude}"
+TARGETS="${GEMINI_SEO_TARGETS:-gemini}"
 
 remove_target() {
     skill_root="$1"

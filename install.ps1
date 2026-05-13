@@ -136,7 +136,7 @@ try {
 
 $RepoUrl = if ($env:GEMINI_SEO_REPO_URL) { $env:GEMINI_SEO_REPO_URL } else { "https://github.com/avalonreset/gemini-seo" }
 $RepoTag = if ($env:GEMINI_SEO_TAG) { $env:GEMINI_SEO_TAG } else { 'v1.9.9' }
-$Targets = if ($env:GEMINI_SEO_TARGETS) { $env:GEMINI_SEO_TARGETS } else { "gemini,codex,claude" }
+$Targets = if ($env:GEMINI_SEO_TARGETS) { $env:GEMINI_SEO_TARGETS } else { "gemini" }
 
 $TempDir = Join-Path $env:TEMP "gemini-seo-install"
 if (Test-Path $TempDir) { Remove-Item -Recurse -Force $TempDir }
@@ -161,7 +161,7 @@ try {
                 Install-Target -RepoDir $TempDir -SkillRoot (Join-Path $env:USERPROFILE ".claude\skills") -AgentRoot (Join-Path $env:USERPROFILE ".claude\agents") -Label "claude" -Python $python
             }
             "" {}
-            default { throw "Unknown target '$target'. Use GEMINI_SEO_TARGETS=gemini,codex,claude." }
+            default { throw "Unknown target '$target'. Check GEMINI_SEO_TARGETS." }
         }
     }
 

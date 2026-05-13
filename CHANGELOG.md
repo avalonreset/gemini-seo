@@ -15,17 +15,14 @@ v1.9.9.
 - Ported the upstream v1.9.9 multi-skill architecture: 25 sub-skills, 18
   companion agent notes, 30 Python scripts, schema templates, tests, and optional
   DataForSEO, Firecrawl, and image generation extensions.
-- Added root compatibility wrapper `SKILL.md`, plus `AGENTS.md`, `CLAUDE.md`,
-  `CODEX.md`, and `GEMINI.md` loader notes.
-- Added installers for Gemini, Codex, and Claude-style local skill roots via
-  `GEMINI_SEO_TARGETS`.
+- Added root `SKILL.md`, loader notes, and cross-platform installers.
 - Added manifest/version tests from upstream and retargeted metadata to
   `avalonreset/gemini-seo`.
 
 ### Changed
 
 - Public README and docs now present the project as terminal-native SEO tooling
-  without compatibility-first marketing.
+  without exposing implementation details as product positioning.
 - Local config/cache paths now use `~/.config/gemini-seo/` and
   `~/.cache/gemini-seo/`.
 - Runtime user agents now identify as `GeminiSEO`.

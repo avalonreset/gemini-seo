@@ -6,8 +6,6 @@ Verify the orchestrator exists in the skill root you installed to:
 
 ```bash
 ls ~/.gemini/skills/seo/SKILL.md
-ls ~/.codex/skills/seo/SKILL.md
-ls ~/.claude/skills/seo/SKILL.md
 ```
 
 Check frontmatter:
@@ -16,7 +14,7 @@ Check frontmatter:
 head -5 ~/.gemini/skills/seo/SKILL.md
 ```
 
-Then restart the host agent and re-run `/seo`.
+Then restart the CLI and re-run `/seo`.
 
 ## Python Dependency Errors
 
@@ -58,8 +56,6 @@ Verify the installed agent notes:
 
 ```bash
 ls ~/.gemini/agents/seo-*.md
-ls ~/.codex/agents/seo-*.md
-ls ~/.claude/agents/seo-*.md
 ```
 
 Re-run the installer if they are absent.

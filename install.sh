@@ -4,7 +4,7 @@ set -euo pipefail
 main() {
     REPO_URL="${GEMINI_SEO_REPO_URL:-https://github.com/avalonreset/gemini-seo}"
     REPO_TAG="${GEMINI_SEO_TAG:-v1.9.9}"
-    TARGETS="${GEMINI_SEO_TARGETS:-gemini,codex,claude}"
+    TARGETS="${GEMINI_SEO_TARGETS:-gemini}"
 
     echo "========================================"
     echo "  Gemini SEO - Installer"
@@ -46,7 +46,7 @@ main() {
             "")
                 ;;
             *)
-                echo "Unknown install target '${target}'. Use GEMINI_SEO_TARGETS=gemini,codex,claude."
+                echo "Unknown install target '${target}'. Check GEMINI_SEO_TARGETS."
                 exit 1
                 ;;
         esac

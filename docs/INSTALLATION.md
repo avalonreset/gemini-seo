@@ -23,29 +23,15 @@ powershell -ExecutionPolicy Bypass -File gemini-seo\install.ps1
 ```
 
 The installer copies the root bundle, individual `skills/seo*` directories,
-companion agent notes, scripts, schema templates, docs, and optional extensions
-into user-level skill directories.
+companion specialist notes, scripts, schema templates, docs, and optional
+extensions into user-level skill directories.
 
-By default, the installer targets common local skill roots:
+The standard install path is the Gemini user skill root:
 
-| Target | Skill root | Agent notes |
-|--------|------------|-------------|
-| Gemini | `~/.gemini/skills/` | `~/.gemini/agents/` |
-| Codex | `$CODEX_HOME/skills/` or `~/.codex/skills/` | `$CODEX_HOME/agents/` or `~/.codex/agents/` |
-| Claude-style | `~/.claude/skills/` | `~/.claude/agents/` |
-
-Limit targets with `GEMINI_SEO_TARGETS`:
-
-```bash
-GEMINI_SEO_TARGETS=gemini,codex bash gemini-seo/install.sh
-```
-
-PowerShell:
-
-```powershell
-$env:GEMINI_SEO_TARGETS = "gemini,codex"
-powershell -ExecutionPolicy Bypass -File gemini-seo\install.ps1
-```
+| Files | Install location |
+|-------|------------------|
+| Skills | `~/.gemini/skills/` |
+| Companion specialist notes | `~/.gemini/agents/` |
 
 ## Release Tag Pinning
 
@@ -93,7 +79,6 @@ Check that the orchestrator exists in your selected skill root:
 
 ```bash
 ls ~/.gemini/skills/seo/SKILL.md
-ls ~/.codex/skills/seo/SKILL.md
 ```
 
 Then run:
@@ -115,5 +100,3 @@ Windows:
 ```powershell
 powershell -ExecutionPolicy Bypass -File gemini-seo\uninstall.ps1
 ```
-
-Use `GEMINI_SEO_TARGETS` with the uninstaller to remove only selected targets.

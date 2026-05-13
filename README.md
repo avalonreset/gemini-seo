@@ -2,17 +2,83 @@
   <img src="screenshots/cover-image.webp" alt="Gemini SEO v1.9.9 terminal-native SEO workflows" width="100%">
 </p>
 
-# Gemini SEO
+# Gemini SEO - Terminal-Native SEO Workflows
 
 [![CI](https://github.com/avalonreset/gemini-seo/actions/workflows/ci.yml/badge.svg)](https://github.com/avalonreset/gemini-seo/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/release/avalonreset/gemini-seo)](https://github.com/avalonreset/gemini-seo/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/avalonreset/gemini-seo)](https://github.com/avalonreset/gemini-seo/commits/main)
 
-Terminal-native SEO workflows for audits, technical diagnostics, content quality, schema, AI search readiness, local search, backlinks, international SEO, e-commerce SEO, and client-ready reporting.
+Gemini SEO is a terminal-native SEO workflow suite for audits, technical diagnostics, content quality,
+schema, AI search readiness, local search, backlinks, international SEO, e-commerce SEO, and
+client-ready reporting.
 
-Gemini SEO v1.9.9 includes 25 sub-skills (21 core + 1 orchestrator + 1 framework integration + 2 extension mirrors), 18 sub-agents (15 core + 1 framework integration + 2 extension mirrors), and 30 Python execution scripts.
+Version 1.9.9 ships 25 sub-skills, 18 companion specialist notes, 30 Python execution scripts,
+schema templates, optional data extensions, and manifest consistency tests.
 
-Independent community project. Not affiliated with or endorsed by Google. Adapted from [AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo), with upstream attribution retained in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+Independent community project. Not affiliated with or endorsed by Google. Adapted from
+[AgriciDaniel/claude-seo](https://github.com/AgriciDaniel/claude-seo), with upstream attribution
+retained in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+## Table of Contents
+
+- [What It Does](#what-it-does)
+- [Quick Start](#quick-start)
+- [Commands](#commands)
+- [Example Workflows](#example-workflows)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Documentation](#documentation)
+- [Release Notes](#release-notes)
+- [Frequently Asked Questions](#frequently-asked-questions)
+- [Contributing](#contributing)
+- [License](#license)
+
+## What It Does
+
+- Technical SEO: crawlability, indexability, security headers, redirects, canonicals, Core Web Vitals,
+  and mobile checks.
+- Content quality: E-E-A-T, topical depth, author signals, readability, thin content, and AI citation
+  readiness.
+- Structured data: JSON-LD detection, validation, schema generation, rich-result deprecation awareness,
+  and video/live schema.
+- GEO and AI search: crawler access, `llms.txt`, passage citability, brand mentions, and answer-engine
+  readiness.
+- Local and maps: GBP signals, NAP consistency, reviews, citations, geo-grid intelligence, and local
+  schema.
+- Backlinks: Moz, Bing Webmaster Tools, Common Crawl graph checks, backlink verification, and optional
+  DataForSEO data.
+- Strategy: roadmaps, content calendars, semantic clusters, competitor comparison pages, programmatic
+  SEO, SXO, and drift monitoring.
+- Reporting: Markdown, HTML, PDF, charts, Google SEO reports, and reusable schema/report templates.
+
+## Quick Start
+
+Clone and run the installer:
+
+```bash
+git clone --depth 1 https://github.com/avalonreset/gemini-seo.git
+bash gemini-seo/install.sh
+```
+
+Windows:
+
+```powershell
+git clone --depth 1 https://github.com/avalonreset/gemini-seo.git
+powershell -ExecutionPolicy Bypass -File gemini-seo\install.ps1
+```
+
+The installer copies the skill tree, sub-skills, helper scripts, schema templates, optional extensions,
+and companion specialist notes into user-level skill directories. It pins to the current release tag by
+default; override with `GEMINI_SEO_TAG=main` when you intentionally want the branch tip.
+
+For a packaged Gemini CLI install, download `gemini-seo.skill` from the release assets and install it
+with:
+
+```bash
+gemini skills install path/to/gemini-seo.skill --scope user
+```
 
 ## Commands
 
@@ -45,35 +111,31 @@ Independent community project. Not affiliated with or endorsed by Google. Adapte
 | `/seo firecrawl [command] <url>` | Optional Firecrawl full-site crawl extension |
 | `/seo image-gen [use-case] <description>` | Optional SEO image planning and generation extension |
 
-## Quick Start
+## Example Workflows
 
-Clone and run the installer:
+Run a full audit:
 
-```bash
-git clone --depth 1 https://github.com/avalonreset/gemini-seo.git
-bash gemini-seo/install.sh
+```text
+/seo audit https://example.com
 ```
 
-Windows:
+Check AI search readiness for a single page:
 
-```powershell
-git clone --depth 1 https://github.com/avalonreset/gemini-seo.git
-powershell -ExecutionPolicy Bypass -File gemini-seo\install.ps1
+```text
+/seo geo https://example.com/blog/guide
 ```
 
-The installer copies the skill tree, sub-skills, helper scripts, schema templates, optional extensions, and companion agent notes into user-level skill directories. It pins to the current release tag by default; override with `GEMINI_SEO_TAG=main` when you intentionally want the branch tip.
+Generate a Google SEO report when credentials are configured:
 
-For a packaged Gemini CLI install, download `gemini-seo.skill` from the release assets and install it with:
-
-```bash
-gemini skills install path/to/gemini-seo.skill --scope user
+```text
+/seo google report https://example.com
 ```
 
 ## Architecture
 
 ```text
 gemini-seo/
-├── SKILL.md                    # Root compatibility wrapper
+├── SKILL.md                    # Root skill entrypoint
 ├── skills/
 │   ├── seo/                    # Main orchestrator and shared references
 │   └── seo-*/                  # Specialized sub-skills
@@ -85,25 +147,23 @@ gemini-seo/
 └── docs/                       # Installation, commands, architecture, troubleshooting
 ```
 
-The orchestrator uses progressive disclosure: read `skills/seo/SKILL.md` first, then load only the sub-skill and reference files needed for the task.
-
-## Features
-
-- Technical SEO: crawlability, indexability, security headers, redirects, canonicals, Core Web Vitals, and mobile checks.
-- Content quality: E-E-A-T, topical depth, author signals, readability, thin content, and AI citation readiness.
-- Structured data: JSON-LD detection, validation, schema generation, rich-result deprecation awareness, and video/live schema.
-- GEO and AI search: crawler access, `llms.txt`, passage citability, brand mentions, and answer-engine readiness.
-- Local and maps: GBP signals, NAP consistency, reviews, citations, geo-grid intelligence, and local schema.
-- Backlinks: Moz, Bing Webmaster Tools, Common Crawl graph checks, backlink verification, and optional DataForSEO data.
-- Strategy: roadmaps, content calendars, semantic clusters, competitor comparison pages, programmatic SEO, SXO, and drift monitoring.
-- Reporting: Markdown, HTML, PDF, charts, Google SEO reports, and reusable schema/report templates.
+The orchestrator uses progressive disclosure: read `skills/seo/SKILL.md` first, then load only the
+sub-skill and reference files needed for the task.
 
 ## Requirements
 
 - Python 3.10+
 - Git
 - Optional: Playwright Chromium for screenshot and visual analysis
-- Optional API credentials for Google APIs, DataForSEO, Firecrawl, Moz, Bing Webmaster Tools, and image generation workflows
+- Optional API credentials for Google APIs, DataForSEO, Firecrawl, Moz, Bing Webmaster Tools, and image
+  generation workflows
+
+## Configuration
+
+Gemini SEO keeps local credentials out of the repository. Provider credentials and API keys should live
+in environment variables or user-level config files, depending on the workflow. See
+[MCP Integration](docs/MCP-INTEGRATION.md) for external data sources and [Troubleshooting](docs/TROUBLESHOOTING.md)
+for dependency checks.
 
 ## Documentation
 
@@ -116,7 +176,36 @@ The orchestrator uses progressive disclosure: read `skills/seo/SKILL.md` first, 
 
 ## Release Notes
 
-v1.9.9 brings the project up to the upstream 1.x feature surface: the multi-skill layout, 18 companion agents, optional extensions, Google and backlink APIs, drift monitoring, FLOW integration, manifest consistency tests, lazy-load detection fixes, and dependency floor updates.
+v1.9.9 brings the project up to the upstream 1.x feature surface: the multi-skill layout, 18 companion
+specialist notes, optional extensions, Google and backlink APIs, drift monitoring, FLOW integration,
+manifest consistency tests, lazy-load detection fixes, and dependency floor updates.
+
+## Frequently Asked Questions
+
+### What is Gemini SEO?
+
+Gemini SEO is a terminal-native SEO workflow suite that turns common audit, research, schema,
+performance, local, backlink, and reporting tasks into reusable `/seo` commands.
+
+### Is it only for full-site audits?
+
+No. Full audits are one workflow, but the individual commands can target a page, sitemap, schema block,
+content brief, backlink profile, local search footprint, or drift baseline.
+
+### Do I need paid API keys?
+
+No for the baseline workflows. API keys unlock richer live data from sources such as Google APIs,
+DataForSEO, Firecrawl, Moz, Bing Webmaster Tools, and image generation services.
+
+### Where do generated reports go?
+
+Most workflows write Markdown, HTML, PDF, chart, or JSON outputs into the current working directory or
+the workflow-specific output path described by the command.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, local setup notes, and review
+expectations. Public releases retain upstream attribution in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## License
 
