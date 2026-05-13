@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="screenshots/cover-image.webp" alt="Gemini SEO open source SEO audit workflows" width="100%">
+  <img src="screenshots/cover-image.webp" alt="Gemini SEO v1.9.9 terminal-native SEO workflows" width="100%">
 </p>
 
 # Gemini SEO
