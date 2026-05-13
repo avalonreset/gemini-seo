@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Post-edit schema validation hook for Gemini.
+"""Post-edit schema validation hook for Claude Code.
 
 Validates JSON-LD schema after file edits. Returns exit code 2 to block
 if critical validation errors found.
 
-Hook configuration in ~/.Gemini/settings.json:
+Hook configuration in ~/.claude/settings.json:
 {
   "hooks": {
     "PostToolUse": [
@@ -13,7 +13,7 @@ Hook configuration in ~/.Gemini/settings.json:
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.Gemini/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
+            "command": "python3 ~/.claude/skills/seo/hooks/validate-schema.py \"$FILE_PATH\"",
             "exitCodes": { "2": "block" }
           }
         ]
@@ -40,14 +40,14 @@ def validate_jsonld(content: str) -> List[str]:
     blocks = re.findall(pattern, content, re.DOTALL | re.IGNORECASE)
 
     if not blocks:
-        return []  # No schema found — not an error
+        return []  # No schema found; not an error
 
     for i, block in enumerate(blocks, 1):
         block = block.strip()
         try:
             data = json.loads(block)
         except json.JSONDecodeError as e:
-            errors.append(f"Block {i}: Invalid JSON — {e}")
+            errors.append(f"Block {i}: Invalid JSON; {e}")
             continue
 
         if isinstance(data, list):
@@ -100,8 +100,8 @@ def _validate_schema_object(obj: dict, block_num: int) -> List[str]:
         "CourseInfo": "retired June 2025",
         "EstimatedSalary": "retired June 2025",
         "LearningVideo": "retired June 2025",
-        "ClaimReview": "retired June 2025 — fact-check rich results discontinued",
-        "VehicleListing": "retired June 2025 — vehicle listing structured data discontinued",
+        "ClaimReview": "retired June 2025; fact-check rich results discontinued",
+        "VehicleListing": "retired June 2025; vehicle listing structured data discontinued",
     }
     if schema_type in deprecated:
         errors.append(f"{prefix}: @type '{schema_type}' is {deprecated[schema_type]}")
@@ -109,7 +109,7 @@ def _validate_schema_object(obj: dict, block_num: int) -> List[str]:
     # Check for restricted types used incorrectly
     restricted = {"FAQPage": "restricted to government and healthcare sites only (Aug 2023)"}
     if schema_type in restricted:
-        errors.append(f"{prefix}: @type '{schema_type}' is {restricted[schema_type]} — verify site qualifies")
+        errors.append(f"{prefix}: @type '{schema_type}' is {restricted[schema_type]}; verify site qualifies")
 
     return errors
 
@@ -126,6 +126,16 @@ def main():
     # Only validate HTML-like files
     valid_extensions = (".html", ".htm", ".jsx", ".tsx", ".vue", ".svelte", ".php", ".ejs")
     if not filepath.endswith(valid_extensions):
+        sys.exit(0)
+
+    # File-size guard: skip files >10MB to bound memory + hook latency.
+    # Real source files almost never exceed this; bigger inputs are typically
+    # generated, minified bundles or accidental binary writes.
+    MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MiB
+    try:
+        if os.path.getsize(filepath) > MAX_FILE_BYTES:
+            sys.exit(0)
+    except OSError:
         sys.exit(0)
 
     try:
@@ -155,9 +165,8 @@ def main():
             print(f"  - {e}")
         sys.exit(2)  # Block the edit
 
-    sys.exit(1)  # Warnings only — proceed
+    sys.exit(1)  # Warnings only; proceed
 
 
 if __name__ == "__main__":
     main()
-

@@ -1,47 +1,61 @@
-# Contributing to Gemini SEO
+# Contributing to gemini-seo
 
-Thanks for contributing.
+Thanks for your interest in contributing! Here's how to get involved.
 
-## Ground Rules
+## Reporting Bugs
 
-- Keep changes focused and minimal.
-- Preserve project lineage and attribution to the upstream project.
-- Do not remove legal/disclosure language without maintainer approval.
-- Use clear commit messages.
+Open a [GitHub Issue](https://github.com/avalonreset/gemini-seo/issues) with:
 
-## Local Setup
+- Your OS and Python version
+- The full error output (copy from terminal)
+- The command or step that failed
+- The URL you were analyzing (if applicable)
+
+## Suggesting Features
+
+Use [GitHub Discussions](https://github.com/avalonreset/gemini-seo/discussions) for feature ideas and questions.
+
+## Pull Requests
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Make your changes
+4. Test with a sample URL before submitting
+5. Submit a PR with a clear description of what changed and why
+
+### Development Setup
 
 ```bash
-git clone https://github.com/avalonreset/gemini-seo.git
+git clone https://github.com/YOUR_USERNAME/gemini-seo.git
 cd gemini-seo
-pip install -r requirements.txt
+bash install.sh
 ```
 
-## Validation Before PR
+### Guidelines
 
-Run the same baseline checks used by CI:
+- Python scripts should output JSON or structured text that agent hosts can parse
+- Shell scripts should use `set -euo pipefail` for safety
+- SKILL.md files must stay under 500 lines
+- Reference files should be focused and under 200 lines
+- Follow kebab-case naming for all directories and files
+- Keep dependencies minimal
 
-```bash
-bash -n install.sh
-bash -n uninstall.sh
-bash -n hooks/pre-commit-seo-check.sh
-python -m py_compile hooks/validate-schema.py scripts/fetch_page.py
-```
+### Code Style
 
-## Pull Request Checklist
+- Python: Follow PEP 8 conventions. Use `ruff check` or `flake8` for linting before submitting
+- Shell: Use `set -euo pipefail` and quote all variables
+- Markdown: Keep lines under 120 characters where practical
 
-- Explain the problem and the fix.
-- Note any behavior changes.
-- Update docs when commands or workflows change.
-- Avoid unrelated refactors.
+## Community Extensions (Pro Hub Challenge)
 
-## Code Style
+Gemini SEO accepts community-built extensions through challenges and PRs.
+v1.9.0 integrated 5 challenge submissions and v1.9.7 added 9 community pull
+requests from 7 contributors. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the
+full credits.
 
-- Python: follow PEP 8 conventions. If you have [Ruff](https://docs.astral.sh/ruff/) installed, run `ruff check .` before submitting.
-- Shell scripts: use `shellcheck` where possible.
-- Keep formatting consistent with surrounding code.
-
-## Security Fixes
-
-For vulnerabilities, follow `SECURITY.md` instead of opening a detailed public issue.
-
+To submit a community extension:
+1. Build your skill/agent/script following the patterns in this repo
+2. Keep SKILL.md under 500 lines, references under 200 lines
+3. All scripts must import `validate_url()` from `google_auth.py` for SSRF protection
+4. Include `original_author` in your SKILL.md frontmatter metadata
+5. Submit a PR or post in the [AI Marketing Hub](https://www.skool.com/ai-marketing-hub)

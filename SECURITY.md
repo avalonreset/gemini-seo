@@ -1,30 +1,25 @@
 # Security Policy
 
-## Supported Versions
-
-Security fixes are provided for the current `main` branch.
-
 ## Reporting a Vulnerability
 
-Please do not post detailed vulnerability reports in public issues.
+If you discover a security vulnerability, please report it responsibly:
 
-Preferred reporting paths:
-
-1. Email benjamin@rankenstein.pro directly with vulnerability details.
-2. Use GitHub private vulnerability reporting for this repository (if available).
-3. If neither option works, open a public issue titled `Security Contact Request` without exploit details, and include only:
-   - affected file/path
-   - high-level impact
-   - how to contact you
-
-The maintainer will follow up with a private channel for full details.
+1. **Do NOT open a public issue**
+2. Open a [GitHub Security Advisory](https://github.com/avalonreset/gemini-seo/security/advisories/new) on this repo
+3. Or contact the maintainer directly
 
 ## Response Timeline
 
-Reports are reviewed on a best-effort basis. The maintainer will acknowledge receipt and provide an initial assessment when available. There is no guaranteed response window for this project.
+- **Acknowledgment**: Within 72 hours of report
+- **Status update**: Within 7 days with initial assessment
+- **Resolution**: We aim to release a fix within 30 days for confirmed vulnerabilities
 
-## Disclosure Expectations
+## Supported Versions
 
-- Give maintainers reasonable time to investigate and patch before public disclosure.
-- Include clear reproduction steps and scope where possible.
-- Reporters acting in good faith will be acknowledged.
+Only the latest version receives security updates.
+
+## Security Practices
+
+- No credentials or API keys are stored in this repository
+- Install scripts write only to user-level skill directories (`~/.gemini/`, `~/.codex/`, and `~/.claude/`)
+- Python dependencies install in isolated virtual environments

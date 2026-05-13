@@ -1,22 +1,20 @@
 ## Summary
 
-Describe what changed and why.
+<!-- What does this PR do? Why is it needed? -->
 
 ## Type of Change
 
 - [ ] Bug fix
-- [ ] New feature
+- [ ] New feature / sub-skill
 - [ ] Documentation update
-- [ ] Refactor
-
-## Validation
-
-- [ ] Ran local checks relevant to the change
-- [ ] Confirmed impacted runner scripts still return `--help`
-- [ ] Updated docs if behavior or commands changed
+- [ ] Refactor / code quality
+- [ ] Other (describe below)
 
 ## Checklist
 
-- [ ] Scope is focused
-- [ ] No unrelated changes
-- [ ] Attribution/legal/disclosure sections remain accurate
+- [ ] Tested with a real URL before submitting
+- [ ] SKILL.md files stay under 500 lines (if modified)
+- [ ] Python scripts output JSON (if modified)
+- [ ] Reference files stay under 200 lines (if modified)
+- [ ] `set -euo pipefail` used in any new shell scripts
+- [ ] CHANGELOG.md updated with the change

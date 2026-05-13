@@ -11,13 +11,28 @@ import ipaddress
 import json
 import socket
 import sys
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
     print("Error: playwright required. Install with: pip install playwright && playwright install chromium")
     sys.exit(1)
+
+
+def normalize_url(url: str) -> tuple[str, ParseResult]:
+    """Normalize URL and return (url, parsed_url)."""
+    parsed = urlparse(url)
+    if not parsed.scheme:
+        url = f"https://{url}"
+        parsed = urlparse(url)
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid URL scheme: {parsed.scheme}")
+    if not parsed.hostname:
+        raise ValueError("Invalid URL: missing hostname")
+
+    return url, parsed
 
 
 def analyze_visual(url: str, timeout: int = 30000) -> dict:
@@ -54,15 +69,21 @@ def analyze_visual(url: str, timeout: int = 30000) -> dict:
         "error": None,
     }
 
+    try:
+        url, parsed = normalize_url(url)
+        result["url"] = url
+    except ValueError as e:
+        result["error"] = str(e)
+        return result
+
     # SSRF prevention: block private/internal IPs
     try:
-        parsed = urlparse(url)
         resolved_ip = socket.gethostbyname(parsed.hostname)
         ip = ipaddress.ip_address(resolved_ip)
         if ip.is_private or ip.is_loopback or ip.is_reserved:
             result["error"] = f"Blocked: URL resolves to private/internal IP ({resolved_ip})"
             return result
-    except (socket.gaierror, ValueError):
+    except socket.gaierror:
         pass
 
     try:
@@ -176,17 +197,17 @@ def main():
         print("=" * 40)
 
         print("\nAbove the Fold:")
-        print(f"  H1 Visible: {'YES' if result['above_fold']['h1_visible'] else 'NO'}")
-        print(f"  CTA Visible: {'YES' if result['above_fold']['cta_visible'] else 'NO'}")
+        print(f"  H1 Visible: {'✓' if result['above_fold']['h1_visible'] else '✗'}")
+        print(f"  CTA Visible: {'✓' if result['above_fold']['cta_visible'] else '✗'}")
         print(f"  Hero Image: {result['above_fold']['hero_image'] or 'None found'}")
 
         print("\nMobile Responsiveness:")
-        print(f"  Viewport Meta: {'YES' if result['mobile']['viewport_meta'] else 'NO'}")
-        print(f"  Horizontal Scroll: {'YES (problem)' if result['mobile']['horizontal_scroll'] else 'NO'}")
+        print(f"  Viewport Meta: {'✓' if result['mobile']['viewport_meta'] else '✗'}")
+        print(f"  Horizontal Scroll: {'✗ (problem)' if result['mobile']['horizontal_scroll'] else '✓'}")
 
         print("\nTypography:")
         print(f"  Base Font Size: {result['fonts']['base_size']}px")
-        print(f"  Readable (>=16px): {'YES' if result['fonts']['readable'] else 'NO'}")
+        print(f"  Readable (≥16px): {'✓' if result['fonts']['readable'] else '✗'}")
 
         if result["error"]:
             print(f"\nError: {result['error']}")

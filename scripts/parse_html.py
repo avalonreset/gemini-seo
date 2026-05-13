@@ -21,6 +21,52 @@ except ImportError:
     print("Error: beautifulsoup4 required. Install with: pip install beautifulsoup4")
     sys.exit(1)
 
+try:
+    import lxml  # noqa: F401
+    _HTML_PARSER = "lxml"
+except ImportError:
+    _HTML_PARSER = "html.parser"
+
+
+# Lazy-loader detection — covers native + the major JS lazy-loaders found on
+# WordPress/WooCommerce sites (Perfmatters, EWWW Image Optimizer, generic
+# `data-src` patterns). Sites optimized by these plugins strip native
+# `loading="lazy"` and replace `src` with a placeholder, so a check on `loading`
+# alone reports "not lazy-loaded" when the page is in fact heavily lazy-loaded.
+_PERFMATTERS_ATTRS = ("data-perfmatters-src", "data-perfmatters-srcset")
+_EWWW_ATTRS = ("data-ewww-src", "data-eio")
+_GENERIC_LAZY_ATTRS = ("data-src", "data-lazy-src", "data-original", "data-srcset")
+_PERFMATTERS_CLASSES = {"perfmatters-lazy", "perfmatters-lazy-loaded"}
+_EWWW_CLASSES = {"lazyload-eio", "lazyloaded-eio"}
+_GENERIC_LAZY_CLASSES = {"lazyload", "lazyloaded", "lazy", "lazy-loaded"}
+
+
+def _detect_lazy_method(img) -> str:
+    """Return a coarse classification of the image's lazy-loading mechanism.
+
+    Order of detection: native -> perfmatters -> ewww -> js-generic -> none.
+    Specific JS lazy-loaders are checked before the generic bucket so reports
+    can attribute the optimization to the right plugin (which informs whether
+    a site is using a specific WP optimization stack).
+
+    Returns one of: 'native', 'perfmatters', 'ewww', 'js-generic', 'none'.
+    """
+    if img.get("loading", "").lower() == "lazy":
+        return "native"
+
+    class_list = set(img.get("class", []) or [])
+
+    if any(img.get(a) for a in _PERFMATTERS_ATTRS) or class_list & _PERFMATTERS_CLASSES:
+        return "perfmatters"
+
+    if any(img.get(a) for a in _EWWW_ATTRS) or class_list & _EWWW_CLASSES:
+        return "ewww"
+
+    if any(img.get(a) for a in _GENERIC_LAZY_ATTRS) or class_list & _GENERIC_LAZY_CLASSES:
+        return "js-generic"
+
+    return "none"
+
 
 def parse_html(html: str, base_url: Optional[str] = None) -> dict:
     """
@@ -33,7 +79,7 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
     Returns:
         Dictionary with extracted SEO data
     """
-    soup = BeautifulSoup(html, "lxml" if "lxml" in sys.modules else "html.parser")
+    soup = BeautifulSoup(html, _HTML_PARSER)
 
     result = {
         "title": None,
@@ -99,6 +145,17 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
             text = heading.get_text(strip=True)
             if text:
                 result[tag].append(text)
+                # Flag suspiciously short or purely numeric headings (likely counters/stats)
+                stripped = text.strip()
+                is_suspicious = (
+                    len(stripped) <= 3
+                    or stripped.replace(",", "").replace(".", "").replace("+", "").replace("-", "").replace("%", "").replace(" ", "").isdigit()
+                )
+                if is_suspicious:
+                    key = f"{tag}_suspicious"
+                    if key not in result:
+                        result[key] = []
+                    result[key].append(text)
 
     # Images
     for img in soup.find_all("img"):
@@ -112,6 +169,7 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
             "width": img.get("width"),
             "height": img.get("height"),
             "loading": img.get("loading"),
+            "lazy_method": _detect_lazy_method(img),
         })
 
     # Links
@@ -141,7 +199,17 @@ def parse_html(html: str, base_url: Optional[str] = None) -> dict:
     for script in soup.find_all("script", type="application/ld+json"):
         try:
             schema_data = json.loads(script.string)
-            result["schema"].append(schema_data)
+            # Flatten @graph containers so each @type is a separate entry
+            if isinstance(schema_data, dict) and "@graph" in schema_data:
+                for item in schema_data["@graph"]:
+                    if isinstance(item, dict):
+                        result["schema"].append(item)
+            elif isinstance(schema_data, list):
+                for item in schema_data:
+                    if isinstance(item, dict):
+                        result["schema"].append(item)
+            else:
+                result["schema"].append(schema_data)
         except (json.JSONDecodeError, TypeError):
             pass
 

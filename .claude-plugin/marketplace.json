@@ -1,0 +1,40 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "avalonreset-seo",
+  "owner": {
+    "name": "avalonreset"
+  },
+  "metadata": {
+    "description": "Comprehensive SEO analysis plugin. 25 sub-skills and 18 sub-agents covering technical SEO, E-E-A-T, content briefs, schema markup, GEO, local SEO, semantic clustering, e-commerce SEO, international SEO, and PDF reporting."
+  },
+  "plugins": [
+    {
+      "name": "gemini-seo",
+      "source": "./",
+      "description": "Comprehensive SEO analysis plugin. 25 sub-skills (21 core + 1 orchestrator + 1 framework integration + 2 extension mirrors) and 18 sub-agents (15 core + 1 framework integration + 2 extension mirrors) covering technical SEO, content quality (E-E-A-T), content briefs, schema markup, image optimization, GEO/AEO, backlinks, local SEO, maps intelligence, semantic clustering, SXO, SEO drift monitoring, e-commerce SEO, international SEO with cultural profiles, FLOW framework integration, Google API integration, and PDF reporting.",
+      "author": {
+        "name": "avalonreset",
+        "email": "benjamin@rankenstein.pro",
+        "url": "https://github.com/avalonreset"
+      },
+      "category": "marketing",
+      "homepage": "https://github.com/avalonreset/gemini-seo",
+      "keywords": [
+        "seo",
+        "technical-seo",
+        "e-e-a-t",
+        "schema-markup",
+        "geo",
+        "ai-search",
+        "local-seo",
+        "backlinks",
+        "semantic-clustering",
+        "ecommerce-seo",
+        "hreflang",
+        "google-search-console",
+        "pagespeed",
+        "ga4"
+      ]
+    }
+  ]
+}

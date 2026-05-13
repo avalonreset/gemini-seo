@@ -2,10 +2,17 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "Gemini SEO"
-version: "1.4.0"
-date-released: "2026-03-16"
+version: 1.9.9
+date-released: "2026-05-13"
 authors:
   - given-names: "Benjamin"
     alias: "avalonreset"
+repository-code: "https://github.com/avalonreset/gemini-seo"
 url: "https://github.com/avalonreset/gemini-seo"
 license: "MIT"
+references:
+  - type: software
+    title: "Gemini SEO"
+    authors:
+      - alias: "AgriciDaniel"
+    repository-code: "https://github.com/avalonreset/gemini-seo"

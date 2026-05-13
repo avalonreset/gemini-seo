@@ -1,47 +1,119 @@
 # Installation Guide
 
-Gemini SEO is packaged natively for the Gemini CLI using the `.skill` format. You do not need to manually copy folders or run complex shell scripts.
+## Prerequisites
 
-## Option 1: Install from Release (Recommended)
+- Python 3.10+ with pip
+- Git
+- Optional: Playwright for screenshot and visual analysis workflows
 
-1. Go to the GitHub Releases page and download the latest `gemini-seo.skill` file.
-2. Open your terminal and run the Gemini CLI installation command:
-   ```bash
-   gemini skills install path/to/gemini-seo.skill --scope user
-   ```
-3. Open the Gemini CLI (or restart it if it's already open).
-4. Run the reload command to ensure the skill is loaded into your context:
-   ```
-   /skills reload
-   ```
-5. Verify the installation:
-   ```
-   /skills list
-   ```
-   You should see `gemini-seo` listed.
+## Quick Install
 
-## Option 2: Build from Source
+Unix, macOS, Linux:
 
-If you want to modify the skill or build it from the raw source code:
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/avalonreset/gemini-seo.git
-   cd gemini-seo
-   ```
-2. Ensure you have the `skill-creator` tool available, and run the packager:
-   ```bash
-   node path/to/skill-creator/scripts/package_skill.cjs .
-   ```
-3. The script will validate the project and output a `gemini-seo.skill` file.
-4. Install it using the command from Option 1.
-
-## Python Dependencies
-
-Gemini SEO uses a few small Python scripts (like `fetch_page.py`) to safely interact with the live web and bypass basic bot protections. 
-
-Ensure you have Python 3 installed on your system. If a script fails during an audit, you may need to install the dependencies manually:
 ```bash
-pip install playwright beautifulsoup4
+git clone --depth 1 https://github.com/avalonreset/gemini-seo.git
+bash gemini-seo/install.sh
+```
+
+Windows:
+
+```powershell
+git clone --depth 1 https://github.com/avalonreset/gemini-seo.git
+powershell -ExecutionPolicy Bypass -File gemini-seo\install.ps1
+```
+
+The installer copies the root bundle, individual `skills/seo*` directories,
+companion agent notes, scripts, schema templates, docs, and optional extensions
+into user-level skill directories.
+
+By default, the installer targets common local skill roots:
+
+| Target | Skill root | Agent notes |
+|--------|------------|-------------|
+| Gemini | `~/.gemini/skills/` | `~/.gemini/agents/` |
+| Codex | `$CODEX_HOME/skills/` or `~/.codex/skills/` | `$CODEX_HOME/agents/` or `~/.codex/agents/` |
+| Claude-style | `~/.claude/skills/` | `~/.claude/agents/` |
+
+Limit targets with `GEMINI_SEO_TARGETS`:
+
+```bash
+GEMINI_SEO_TARGETS=gemini,codex bash gemini-seo/install.sh
+```
+
+PowerShell:
+
+```powershell
+$env:GEMINI_SEO_TARGETS = "gemini,codex"
+powershell -ExecutionPolicy Bypass -File gemini-seo\install.ps1
+```
+
+## Release Tag Pinning
+
+Installers clone the current release tag by default:
+
+```bash
+GEMINI_SEO_TAG=v1.9.9 bash gemini-seo/install.sh
+```
+
+Use `GEMINI_SEO_TAG=main` only when you intentionally want the latest branch tip.
+
+## Packaged Skill Install
+
+For Gemini CLI package installs, download `gemini-seo.skill` from the release
+assets and run:
+
+```bash
+gemini skills install path/to/gemini-seo.skill --scope user
+```
+
+## Dependency Install
+
+The installer creates a Python venv under each installed `seo` skill directory.
+Disable automatic dependency installation with:
+
+```bash
+GEMINI_SEO_INSTALL_DEPS=0 bash gemini-seo/install.sh
+```
+
+Manual dependency install:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+Optional visual analysis support:
+
+```bash
 python -m playwright install chromium
 ```
+
+## Verify
+
+Check that the orchestrator exists in your selected skill root:
+
+```bash
+ls ~/.gemini/skills/seo/SKILL.md
+ls ~/.codex/skills/seo/SKILL.md
+```
+
+Then run:
+
+```text
+/seo audit https://example.com
+```
+
+## Uninstall
+
+Unix, macOS, Linux:
+
+```bash
+bash gemini-seo/uninstall.sh
+```
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File gemini-seo\uninstall.ps1
+```
+
+Use `GEMINI_SEO_TARGETS` with the uninstaller to remove only selected targets.

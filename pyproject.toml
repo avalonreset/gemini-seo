@@ -1,0 +1,11 @@
+[project]
+name = "gemini-seo"
+version = "1.9.9"
+description = "Comprehensive terminal-native SEO analysis skill"
+requires-python = ">=3.10"
+license = "MIT"
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/avalonreset/gemini-seo"
+Repository = "https://github.com/avalonreset/gemini-seo"

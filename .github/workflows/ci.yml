@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Python Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Check Python syntax
+        run: |
+          python3 -m py_compile scripts/fetch_page.py
+          python3 -m py_compile scripts/parse_html.py
+          python3 -m py_compile scripts/analyze_visual.py
+          python3 -m py_compile scripts/capture_screenshot.py
+          python3 -m py_compile scripts/google_auth.py
+          python3 -m py_compile scripts/pagespeed_check.py
+          python3 -m py_compile scripts/crux_history.py
+          python3 -m py_compile scripts/gsc_query.py
+          python3 -m py_compile scripts/gsc_inspect.py
+          python3 -m py_compile scripts/indexing_notify.py
+          python3 -m py_compile scripts/ga4_report.py
+          python3 -m py_compile scripts/google_report.py
+          python3 -m py_compile scripts/youtube_search.py
+          python3 -m py_compile scripts/nlp_analyze.py
+          python3 -m py_compile scripts/keyword_planner.py
+          python3 -m py_compile scripts/backlinks_auth.py
+          python3 -m py_compile scripts/moz_api.py
+          python3 -m py_compile scripts/bing_webmaster.py
+          python3 -m py_compile scripts/commoncrawl_graph.py
+          python3 -m py_compile scripts/verify_backlinks.py
+          python3 -m py_compile scripts/validate_backlink_report.py
+          python3 -m py_compile scripts/dataforseo_costs.py
+          python3 -m py_compile scripts/dataforseo_merchant.py
+          python3 -m py_compile scripts/dataforseo_normalize.py
+          python3 -m py_compile scripts/drift_baseline.py
+          python3 -m py_compile scripts/drift_compare.py
+          python3 -m py_compile scripts/drift_report.py
+          python3 -m py_compile scripts/drift_history.py
+          python3 -m py_compile scripts/sync_flow.py
+          python3 -m py_compile scripts/release_report.py
+          echo "All 30 scripts passed syntax check"
+
+      - name: Check shell script syntax
+        run: |
+          bash -n install.sh
+          bash -n uninstall.sh
+          bash -n extensions/dataforseo/install.sh
+          bash -n extensions/dataforseo/uninstall.sh
+          bash -n extensions/firecrawl/install.sh
+          bash -n extensions/firecrawl/uninstall.sh
+          bash -n extensions/banana/install.sh
+          bash -n extensions/banana/uninstall.sh
+
+  test:
+    name: Test suite (manifests + sync_flow)
+    runs-on: ubuntu-latest
+    env:
+      # gh CLI honors GH_TOKEN automatically; sync_flow.py uses gh for auth.
+      # Without this, anonymous API requests hit GitHub's 60/hr per-IP rate
+      # limit and the sync_flow dry-run test fails on shared-runner IPs.
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install pytest + test deps
+        # beautifulsoup4 is required by tests/test_lazy_detection.py which
+        # exercises parse_html.py via real BeautifulSoup parsing.
+        run: pip install pytest beautifulsoup4
+
+      - name: Run pytest
+        run: pytest tests/ -v
